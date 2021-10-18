@@ -122,10 +122,10 @@ FAlsRigUnit_HandIkRetargeting_Execute()
 		{
 			continue;
 		}
-
-		auto BoneTransform{Hierarchy->GetGlobalTransform(Bone.Type, BoneIndex)};
+		
+		auto BoneTransform{Hierarchy->GetGlobalTransform(Bone)};
 		BoneTransform.AddToTranslation(RetargetingOffset);
 
-		Hierarchy->SetGlobalTransform(Bone.Type, BoneIndex, BoneTransform, bPropagateToChildren);
+		Hierarchy->SetGlobalTransform(Bone, BoneTransform, bPropagateToChildren);
 	}
 }

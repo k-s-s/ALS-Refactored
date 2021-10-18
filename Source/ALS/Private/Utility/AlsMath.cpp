@@ -76,8 +76,8 @@ FVector UAlsMath::SlerpSkipNormalization(const FVector& From, const FVector& To,
 	const auto Theta{FMath::Acos(Dot) * Alpha};
 	const auto FromPerpendicular{(To - From * Dot).GetSafeNormal()};
 
-	float Sin;
-	float Cos;
+	double Sin;
+	double Cos;
 	FMath::SinCos(&Sin, &Cos, Theta);
 
 	return From * Cos + FromPerpendicular * Sin;

@@ -269,11 +269,11 @@ FVector UAlsCameraComponent::CalculatePivotLagLocation(const FQuat& CameraYawRot
 			const auto SubstepRelativePivotTargetLocation{RelativePivotInitialLagLocation + SubstepMovementSpeed * SubstepTime};
 			const auto SubstepDeltaTime{SubstepTime - PreviousSubstepTime};
 
-			RelativePivotLagLocation.X = FMath::FInterpTo(RelativePivotLagLocation.X, SubstepRelativePivotTargetLocation.X,
+			RelativePivotLagLocation.X = UAlsMath::InterpTo(RelativePivotLagLocation.X, SubstepRelativePivotTargetLocation.X,
 			                                              SubstepDeltaTime, LocationLagX);
-			RelativePivotLagLocation.Y = FMath::FInterpTo(RelativePivotLagLocation.Y, SubstepRelativePivotTargetLocation.Y,
+			RelativePivotLagLocation.Y = UAlsMath::InterpTo(RelativePivotLagLocation.Y, SubstepRelativePivotTargetLocation.Y,
 			                                              SubstepDeltaTime, LocationLagY);
-			RelativePivotLagLocation.Z = FMath::FInterpTo(RelativePivotLagLocation.Z, SubstepRelativePivotTargetLocation.Z,
+			RelativePivotLagLocation.Z = UAlsMath::InterpTo(RelativePivotLagLocation.Z, SubstepRelativePivotTargetLocation.Z,
 			                                              SubstepDeltaTime, LocationLagZ);
 
 			PreviousSubstepTime = SubstepTime;

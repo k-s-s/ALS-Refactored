@@ -543,9 +543,9 @@ void UAlsAnimationInstance::RefreshFootOffset(FAlsFootState& FootState, const fl
 		// Calculate the rotation offset.
 
 		TargetRotationOffset = FRotator{
-			-UAlsMath::DirectionToAngle({Hit.ImpactNormal.Z, Hit.ImpactNormal.X}),
+			-UAlsMath::DirectionToAngle(FVector2D(Hit.ImpactNormal.Z, Hit.ImpactNormal.X)),
 			0.0f,
-			UAlsMath::DirectionToAngle({Hit.ImpactNormal.Z, Hit.ImpactNormal.Y})
+			UAlsMath::DirectionToAngle(FVector2D(Hit.ImpactNormal.Z, Hit.ImpactNormal.Y))
 		}.Quaternion();
 	}
 	else
@@ -665,11 +665,11 @@ void UAlsAnimationInstance::RefreshVelocityBlend(const float DeltaTime)
 	                                                             UAlsMath::Clamp01(RelativeDirection.X), DeltaTime,
 	                                                             Settings->Movement.VelocityBlendInterpolationSpeed);
 
-	MovementState.VelocityBlend.BackwardAmount = FMath::FInterpTo(MovementState.VelocityBlend.BackwardAmount,
+	MovementState.VelocityBlend.BackwardAmount = UAlsMath::InterpTo(MovementState.VelocityBlend.BackwardAmount,
 	                                                              FMath::Abs(FMath::Clamp(RelativeDirection.X, -1.0f, 0.0f)), DeltaTime,
 	                                                              Settings->Movement.VelocityBlendInterpolationSpeed);
 
-	MovementState.VelocityBlend.LeftAmount = FMath::FInterpTo(MovementState.VelocityBlend.LeftAmount,
+	MovementState.VelocityBlend.LeftAmount = UAlsMath::InterpTo(MovementState.VelocityBlend.LeftAmount,
 	                                                          FMath::Abs(FMath::Clamp(RelativeDirection.Y, -1.0f, 0.0f)), DeltaTime,
 	                                                          Settings->Movement.VelocityBlendInterpolationSpeed);
 
@@ -1113,7 +1113,7 @@ FAlsLeanState UAlsAnimationInstance::CalculateInAirLeanAmount() const
 		Settings->InAir.LeanAmountCurve->GetFloatValue(InAirState.VerticalVelocity)
 	};
 
-	return {RelativeVelocity.Y, RelativeVelocity.X};
+	return FAlsLeanState(RelativeVelocity.Y, RelativeVelocity.X);
 }
 
 void UAlsAnimationInstance::RefreshRagdolling()
