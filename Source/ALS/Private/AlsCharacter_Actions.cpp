@@ -601,7 +601,7 @@ void AAlsCharacter::RefreshRagdollingActorTransform(const float DeltaTime)
 	{
 		RagdollingState.PullForce = FMath::FInterpTo(RagdollingState.PullForce, 750.0f, DeltaTime, 0.6f);
 
-		const auto RagdollSpeedSquared{FVector2D{RagdollingState.RootBoneVelocity.X, RagdollingState.RootBoneVelocity.Y}.SizeSquared()};
+		const auto RagdollSpeedSquared{FVector2D(RagdollingState.RootBoneVelocity.X, RagdollingState.RootBoneVelocity.Y).SizeSquared()};
 
 		const auto PullForceSocketName{
 			RagdollSpeedSquared > FMath::Square(300.0f)

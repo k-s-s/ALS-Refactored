@@ -31,8 +31,11 @@ public:
 	template <class T>
 	static T Damp(const T& A, const T& B, float DeltaTime, float Smoothing);
 
-	template <class T>
-	static T ExponentialDecay(const T& A, const T& B, float DeltaTime, float Lambda);
+	template <class T, class U>
+	static T InterpTo(T Current, U Target, float DeltaTime, float InterpSpeed);
+
+	template <class T, class U>
+	static T ExponentialDecay(const T& A, const U& B, float DeltaTime, float Lambda);
 
 	UFUNCTION(BlueprintPure, Category = "ALS|Als Math")
 	static float InterpolateAngleConstant(float CurrentAngle, float TargetAngle, float DeltaTime, float InterpolationSpeed);
@@ -108,10 +111,34 @@ T UAlsMath::Damp(const T& A, const T& B, const float DeltaTime, const float Smoo
 	return Smoothing <= 0.0f ? B : FMath::Lerp(A, B, Damp(DeltaTime, Smoothing));
 }
 
-template <class T>
-T UAlsMath::ExponentialDecay(const T& A, const T& B, const float DeltaTime, const float Lambda)
+template <class T, class U>
+T UAlsMath::InterpTo(T Current, U Target, float DeltaTime, float InterpSpeed)
 {
-	return Lambda <= 0.0f ? B : FMath::Lerp(A, B, ExponentialDecay(DeltaTime, Lambda));
+	// If no interp speed, jump to target value
+	if( InterpSpeed <= 0.0 )
+	{
+		return Target;
+	}
+
+	// Distance to reach
+	const double Dist = Target - Current;
+
+	// If distance is too small, just set the desired location
+	if( FMath::Square(Dist) < SMALL_NUMBER )
+	{
+		return Target;
+	}
+
+	// Delta Move, Clamp so we do not over shoot.
+	const double DeltaMove = Dist * FMath::Clamp<double>(DeltaTime * InterpSpeed, 0.0, 1.0);
+
+	return Current + DeltaMove;
+}
+
+template <class T, class U>
+T UAlsMath::ExponentialDecay(const T& A, const U& B, const float DeltaTime, const float Lambda)
+{
+	return Lambda <= 0.0f ? B : (T)(A + ExponentialDecay(DeltaTime, Lambda) * (B-A));
 }
 
 inline FVector UAlsMath::ClampMagnitude01(const FVector& Vector)

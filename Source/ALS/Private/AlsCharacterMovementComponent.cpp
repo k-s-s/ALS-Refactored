@@ -193,13 +193,13 @@ float UAlsCharacterMovementComponent::CalculateGaitAmount() const
 
 	if (Speed <= GaitSettings.WalkSpeed)
 	{
-		return FMath::GetMappedRangeValueClamped({0.0f, GaitSettings.WalkSpeed}, {0.0f, 1.0f}, Speed);
+		return FMath::GetMappedRangeValueClamped(FVector2D(0.0f, GaitSettings.WalkSpeed), FVector2D(0.0f, 1.0f), Speed);
 	}
 
 	if (Speed <= GaitSettings.RunSpeed)
 	{
-		return FMath::GetMappedRangeValueClamped({GaitSettings.WalkSpeed, GaitSettings.RunSpeed}, {1.0f, 2.0f}, Speed);
+		return FMath::GetMappedRangeValueClamped(FVector2D(GaitSettings.WalkSpeed, GaitSettings.RunSpeed), FVector2D(1.0f, 2.0f), Speed);
 	}
 
-	return FMath::GetMappedRangeValueClamped({GaitSettings.RunSpeed, GaitSettings.SprintSpeed}, {2.0f, 3.0f}, Speed);
+	return FMath::GetMappedRangeValueClamped(FVector2D(GaitSettings.RunSpeed, GaitSettings.SprintSpeed), FVector2D(2.0f, 3.0f), Speed);
 }

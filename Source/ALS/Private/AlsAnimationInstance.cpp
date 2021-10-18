@@ -537,9 +537,9 @@ void UAlsAnimationInstance::RefreshFootOffset(FAlsFootState& FootState, FVector&
 		// Calculate the rotation offset.
 
 		TargetRotationOffset = FRotator{
-			-UAlsMath::DirectionToAngle({Hit.ImpactNormal.Z, Hit.ImpactNormal.X}),
+			-UAlsMath::DirectionToAngle(FVector2D(Hit.ImpactNormal.Z, Hit.ImpactNormal.X)),
 			0.0f,
-			UAlsMath::DirectionToAngle({Hit.ImpactNormal.Z, Hit.ImpactNormal.Y})
+			UAlsMath::DirectionToAngle(FVector2D(Hit.ImpactNormal.Z, Hit.ImpactNormal.Y))
 		}.Quaternion();
 	}
 	else
@@ -626,10 +626,10 @@ void UAlsAnimationInstance::RefreshMovement(const float DeltaTime)
 
 	// Interpolate the lean amount.
 
-	LeanState.RightAmount = FMath::FInterpTo(LeanState.RightAmount, LocomotionState.RelativeAccelerationAmount.Y, DeltaTime,
+	LeanState.RightAmount = UAlsMath::InterpTo(LeanState.RightAmount, LocomotionState.RelativeAccelerationAmount.Y, DeltaTime,
 	                                         GeneralSettings.LeanInterpolationSpeed);
 
-	LeanState.ForwardAmount = FMath::FInterpTo(LeanState.ForwardAmount, LocomotionState.RelativeAccelerationAmount.X, DeltaTime,
+	LeanState.ForwardAmount = UAlsMath::InterpTo(LeanState.ForwardAmount, LocomotionState.RelativeAccelerationAmount.X, DeltaTime,
 	                                           GeneralSettings.LeanInterpolationSpeed);
 }
 
@@ -654,11 +654,11 @@ void UAlsAnimationInstance::RefreshVelocityBlend(const float DeltaTime)
 	                                                             UAlsMath::Clamp01(RelativeDirection.X), DeltaTime,
 	                                                             MovementSettings.VelocityBlendInterpolationSpeed);
 
-	MovementState.VelocityBlend.BackwardAmount = FMath::FInterpTo(MovementState.VelocityBlend.BackwardAmount,
+	MovementState.VelocityBlend.BackwardAmount = UAlsMath::InterpTo(MovementState.VelocityBlend.BackwardAmount,
 	                                                              FMath::Abs(FMath::Clamp(RelativeDirection.X, -1.0f, 0.0f)), DeltaTime,
 	                                                              MovementSettings.VelocityBlendInterpolationSpeed);
 
-	MovementState.VelocityBlend.LeftAmount = FMath::FInterpTo(MovementState.VelocityBlend.LeftAmount,
+	MovementState.VelocityBlend.LeftAmount = UAlsMath::InterpTo(MovementState.VelocityBlend.LeftAmount,
 	                                                          FMath::Abs(FMath::Clamp(RelativeDirection.Y, -1.0f, 0.0f)), DeltaTime,
 	                                                          MovementSettings.VelocityBlendInterpolationSpeed);
 
@@ -1087,7 +1087,7 @@ FAlsLeanState UAlsAnimationInstance::CalculateInAirLeanAmount() const
 		InAirSettings.LeanAmountCurve->GetFloatValue(InAirState.VerticalVelocity)
 	};
 
-	return {RelativeVelocity.Y, RelativeVelocity.X};
+	return FAlsLeanState(RelativeVelocity.Y, RelativeVelocity.X);
 }
 
 void UAlsAnimationInstance::RefreshRagdolling()
