@@ -17,6 +17,7 @@ FString UAlsAnimNotify_SetGroundedEntryMode::GetNotifyName_Implementation() cons
 
 void UAlsAnimNotify_SetGroundedEntryMode::Notify(USkeletalMeshComponent* MeshComponent, UAnimSequenceBase* Animation)
 {
+	
 	Super::Notify(MeshComponent, Animation);
 
 	auto* AnimationInstance{Cast<UAlsAnimationInstance>(MeshComponent->GetAnimInstance())};
