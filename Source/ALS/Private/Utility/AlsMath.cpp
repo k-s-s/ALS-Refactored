@@ -95,8 +95,8 @@ float UAlsMath::FixGamepadDiagonalValues(const float AxisValue, const float Othe
 	//                                                  }));
 
 	return FMath::Clamp(AxisValue *
-	                    FMath::GetMappedRangeValueClamped({0.0f, 0.6f},
-	                                                      {1.0f, 1.2f},
+	                    FMath::GetMappedRangeValueClamped(FVector2D{0.0f, 0.6f},
+	                                                      FVector2D{1.0f, 1.2f},
 	                                                      FMath::Abs(OtherAxisValue)),
 	                    -1.0f, 1.0f);
 }

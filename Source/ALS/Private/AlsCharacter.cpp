@@ -908,7 +908,7 @@ float AAlsCharacter::CalculateActorRotationSpeed() const
 	// rates for each speed. Increase the speed if the camera is rotating quickly for more responsive rotation.
 
 	return AlsCharacterMovement->GetGaitSettings().RotationSpeedCurve->GetFloatValue(AlsCharacterMovement->CalculateGaitAmount()) *
-	       FMath::GetMappedRangeValueClamped({0.0f, 300.0f}, {1.0f, 3.0f}, ViewState.YawSpeed);
+	       FMath::GetMappedRangeValueClamped(FVector2D{0.0f, 300.0f}, FVector2D{1.0f, 3.0f}, ViewState.YawSpeed);
 }
 
 void AAlsCharacter::ApplyRotationYawSpeed(const float DeltaTime)
