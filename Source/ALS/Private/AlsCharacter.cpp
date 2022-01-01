@@ -1023,14 +1023,12 @@ void AAlsCharacter::RefreshActorRotationInstant(const float TargetYawAngle, cons
 void AAlsCharacter::RefreshActorRotation(const float TargetYawAngle, const float DeltaTime, const float ActorRotationInterpolationSpeed)
 {
 	RefreshTargetYawAngle(TargetYawAngle);
-	auto yawRot = FRotator(0.f, TargetYawAngle, 0.f);
-	SetActorRotation(UAlsMath::ExponentialDecay(GetActorRotation(), yawRot, DeltaTime, ActorRotationSpeed));
 
 	auto NewRotation{GetActorRotation()};
 	NewRotation.Yaw = UAlsMath::ExponentialDecayAngle(NewRotation.Yaw, TargetYawAngle, DeltaTime, ActorRotationInterpolationSpeed);
 
 	SetActorRotation(NewRotation);
-
+	
 	RefreshLocomotionLocationAndRotation();
 }
 

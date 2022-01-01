@@ -73,7 +73,7 @@ void UAlsAnimGraphNode_GameplayTagsBlend::CustomizePinData(UEdGraphPin* Pin, con
 #if ENGINE_MAJOR_VERSION >= 5
 void UAlsAnimGraphNode_GameplayTagsBlend::GetOutputLinkAttributes(FNodeAttributeArray& Attributes) const
 {
-	if (Node.TransitionType == EBlendListTransitionType::Inertialization)
+	if (Node.GetTransitionType() == EBlendListTransitionType::Inertialization)
 	{
 		Attributes.Add(UE::Anim::IInertializationRequester::Attribute);
 	}

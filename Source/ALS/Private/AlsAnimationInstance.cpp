@@ -85,10 +85,10 @@ void UAlsAnimationInstance::RefreshLocomotion(const float DeltaTime)
 			FRotator::NormalizeAxis(AlsCharacter->GetLocomotionState().InputYawAngle - AlsCharacter->GetLocomotionState().Rotation.Yaw)
 		};
 
-		const auto InputYawAmount{(InputYawAngle / 180.0f + 1.0f) * 0.5f};
+		const auto InputYawAmount{(static_cast<float>(InputYawAngle) / 180.0f + 1.0f) * 0.5f};
 
 		LocomotionState.InputYawAmount = UAlsMath::ExponentialDecay(LocomotionState.InputYawAmount, InputYawAmount, DeltaTime,
-		                                                            Settings->General.InputYawAmountInterpolationSpeed);
+																	Settings->General.InputYawAmountInterpolationSpeed);
 	}
 
 	LocomotionState.bHasSpeed = AlsCharacter->GetLocomotionState().bHasSpeed;
@@ -662,20 +662,20 @@ void UAlsAnimationInstance::RefreshVelocityBlend(const float DeltaTime)
 	};
 
 	MovementState.VelocityBlend.ForwardAmount = FMath::FInterpTo(MovementState.VelocityBlend.ForwardAmount,
-	                                                             UAlsMath::Clamp01(RelativeDirection.X), DeltaTime,
-	                                                             Settings->Movement.VelocityBlendInterpolationSpeed);
+																 UAlsMath::Clamp01(RelativeDirection.X), DeltaTime,
+																 Settings->Movement.VelocityBlendInterpolationSpeed);
 
-	MovementState.VelocityBlend.BackwardAmount = UAlsMath::InterpTo(MovementState.VelocityBlend.BackwardAmount,
-	                                                              FMath::Abs(FMath::Clamp(RelativeDirection.X, -1.0f, 0.0f)), DeltaTime,
-	                                                              Settings->Movement.VelocityBlendInterpolationSpeed);
+	MovementState.VelocityBlend.BackwardAmount = FMath::FInterpTo(MovementState.VelocityBlend.BackwardAmount,
+																  FMath::Abs(FMath::Clamp(RelativeDirection.X, -1.0f, 0.0f)), DeltaTime,
+																  Settings->Movement.VelocityBlendInterpolationSpeed);
 
-	MovementState.VelocityBlend.LeftAmount = UAlsMath::InterpTo(MovementState.VelocityBlend.LeftAmount,
-	                                                          FMath::Abs(FMath::Clamp(RelativeDirection.Y, -1.0f, 0.0f)), DeltaTime,
-	                                                          Settings->Movement.VelocityBlendInterpolationSpeed);
+	MovementState.VelocityBlend.LeftAmount = FMath::FInterpTo(MovementState.VelocityBlend.LeftAmount,
+															  FMath::Abs(FMath::Clamp(RelativeDirection.Y, -1.0f, 0.0f)), DeltaTime,
+															  Settings->Movement.VelocityBlendInterpolationSpeed);
 
 	MovementState.VelocityBlend.RightAmount = FMath::FInterpTo(MovementState.VelocityBlend.RightAmount,
-	                                                           UAlsMath::Clamp01(RelativeDirection.Y), DeltaTime,
-	                                                           Settings->Movement.VelocityBlendInterpolationSpeed);
+															   UAlsMath::Clamp01(RelativeDirection.Y), DeltaTime,
+															   Settings->Movement.VelocityBlendInterpolationSpeed);
 }
 
 float UAlsAnimationInstance::CalculateStrideBlendAmount() const

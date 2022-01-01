@@ -269,12 +269,12 @@ FVector UAlsCameraComponent::CalculatePivotLagLocation(const FQuat& CameraYawRot
 			const auto SubstepRelativePivotTargetLocation{RelativePivotInitialLagLocation + SubstepMovementSpeed * SubstepTime};
 			const auto SubstepDeltaTime{SubstepTime - PreviousSubstepTime};
 
-			RelativePivotLagLocation.X = UAlsMath::InterpTo(RelativePivotLagLocation.X, SubstepRelativePivotTargetLocation.X,
-			                                              SubstepDeltaTime, LocationLagX);
-			RelativePivotLagLocation.Y = UAlsMath::InterpTo(RelativePivotLagLocation.Y, SubstepRelativePivotTargetLocation.Y,
-			                                              SubstepDeltaTime, LocationLagY);
-			RelativePivotLagLocation.Z = UAlsMath::InterpTo(RelativePivotLagLocation.Z, SubstepRelativePivotTargetLocation.Z,
-			                                              SubstepDeltaTime, LocationLagZ);
+			RelativePivotLagLocation.X = FMath::FInterpTo(RelativePivotLagLocation.X, SubstepRelativePivotTargetLocation.X,
+														  SubstepDeltaTime, LocationLagX);
+			RelativePivotLagLocation.Y = FMath::FInterpTo(RelativePivotLagLocation.Y, SubstepRelativePivotTargetLocation.Y,
+														  SubstepDeltaTime, LocationLagY);
+			RelativePivotLagLocation.Z = FMath::FInterpTo(RelativePivotLagLocation.Z, SubstepRelativePivotTargetLocation.Z,
+														  SubstepDeltaTime, LocationLagZ);
 
 			PreviousSubstepTime = SubstepTime;
 		}
@@ -384,11 +384,11 @@ FVector UAlsCameraComponent::CalculateCameraTrace(const FVector& CameraTargetLoc
 	}
 
 	const auto TargetTraceDistanceRatio{(TraceResult - TraceStart).Size() / TraceDistance};
-
-	NewTraceDistanceRatio = TargetTraceDistanceRatio <= TraceDistanceRatio
-		                        ? TargetTraceDistanceRatio
-		                        : UAlsMath::ExponentialDecay(TraceDistanceRatio, TargetTraceDistanceRatio, DeltaTime,
-		                                                     Settings->ThirdPerson.TraceDistanceInterpolationSpeed);
+	const auto fTargetTraceDistanceRatio = static_cast<float>(TargetTraceDistanceRatio);
+	NewTraceDistanceRatio = fTargetTraceDistanceRatio <= TraceDistanceRatio
+								? fTargetTraceDistanceRatio
+								: UAlsMath::ExponentialDecay(TraceDistanceRatio, fTargetTraceDistanceRatio, DeltaTime,
+															 Settings->ThirdPerson.TraceDistanceInterpolationSpeed);
 
 	return TraceStart + TraceVector * TraceDistanceRatio;
 }
