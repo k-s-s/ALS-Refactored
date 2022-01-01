@@ -2,89 +2,61 @@
 
 #include "GameplayTagContainer.h"
 #include "GameFramework/Character.h"
-#include "Settings/AlsInAirRotationMode.h"
 #include "Settings/AlsMantlingSettings.h"
-#include "Settings/AlsMovementCharacterSettings.h"
-#include "Settings/AlsRagdollingSettings.h"
-#include "Settings/AlsRollingSettings.h"
 #include "State/Enumerations/AlsGait.h"
-#include "State/Enumerations/AlsLocomotionAction.h"
 #include "State/Enumerations/AlsLocomotionMode.h"
 #include "State/Enumerations/AlsRotationMode.h"
 #include "State/Enumerations/AlsStance.h"
 #include "State/Enumerations/AlsViewMode.h"
-#include "State/Structures/AlsLocomotionCharacterState.h"
-#include "State/Structures/AlsMantlingState.h"
-#include "State/Structures/AlsRagdollingCharacterState.h"
-#include "State/Structures/AlsViewCharacterState.h"
+#include "State/Structures/AlsLocomotionState.h"
+#include "State/Structures/AlsRagdollingState.h"
+#include "State/Structures/AlsViewState.h"
 
 #include "AlsCharacter.generated.h"
 
-enum class EAlsMantlingType : uint8;
 class UAlsCharacterMovementComponent;
+class UAlsCharacterSettings;
+class UAlsMovementSettings;
+class UAlsAnimationInstance;
 
 UCLASS()
 class ALS_API AAlsCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
-protected:
+private:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Meta = (AllowPrivateAccess))
-	TWeakObjectPtr<UAlsCharacterMovementComponent> AlsCharacterMovement;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character", Meta = (AllowPrivateAccess, ClampMin = 0))
-	float MovingSpeedThreshold{50.0f};
+	UAlsCharacterMovementComponent* AlsCharacterMovement;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character", Meta = (AllowPrivateAccess))
-	bool bSprintHasPriorityOverAiming;
+	UAlsCharacterSettings* Settings;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character", Meta = (AllowPrivateAccess))
-	bool bRotateToVelocityWhenSprinting;
+	UAlsMovementSettings* MovementSettings;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character", Meta = (AllowPrivateAccess))
-	EAlsInAirRotationMode InAirRotationMode;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character", Meta = (AllowPrivateAccess))
-	bool bAllowAimingWhenInAir{true};
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated,
-		Meta = (AllowPrivateAccess))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated, Meta = (AllowPrivateAccess))
 	EAlsStance DesiredStance;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated,
-		Meta = (AllowPrivateAccess))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated, Meta = (AllowPrivateAccess))
 	EAlsGait DesiredGait{EAlsGait::Running};
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State",
 		ReplicatedUsing = "OnReplicate_DesiredAiming", Meta = (AllowPrivateAccess))
 	bool bDesiredAiming;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated,
-		Meta = (AllowPrivateAccess))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated, Meta = (AllowPrivateAccess))
 	EAlsRotationMode DesiredRotationMode;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated,
-		Meta = (AllowPrivateAccess))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated, Meta = (AllowPrivateAccess))
 	EAlsViewMode ViewMode{EAlsViewMode::ThirdPerson};
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State",
 		ReplicatedUsing = "OnReplicate_OverlayMode", Meta = (AllowPrivateAccess))
 	FGameplayTag OverlayMode;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character",
-		Meta = (AllowPrivateAccess, DisplayName = "Mantling Settings"))
-	FAlsGeneralMantlingSettings GeneralMantlingSettings;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient, Instanced, Meta = (AllowPrivateAccess))
+	UAlsAnimationInstance* AlsAnimationInstance;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character", Meta = (AllowPrivateAccess))
-	FAlsRagdollingSettings RagdollingSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character", Meta = (AllowPrivateAccess))
-	FAlsRollingSettings RollingSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character", Meta = (AllowPrivateAccess))
-	UAlsMovementCharacterSettings* MovementSettings;
-
-private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient, Meta = (AllowPrivateAccess))
 	EAlsStance Stance;
 
@@ -95,31 +67,31 @@ private:
 	EAlsRotationMode RotationMode;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient, Meta = (AllowPrivateAccess))
-	EAlsLocomotionMode LocomotionMode;
+	EAlsLocomotionMode LocomotionMode{EAlsLocomotionMode::Grounded};
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient, Meta = (AllowPrivateAccess))
-	EAlsLocomotionAction LocomotionAction;
+	FGameplayTag LocomotionAction;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient, Replicated, Meta = (AllowPrivateAccess))
 	FVector_NetQuantizeNormal InputDirection;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient, Meta = (AllowPrivateAccess))
-	FAlsLocomotionCharacterState LocomotionState;
+	FAlsLocomotionState LocomotionState;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient, Replicated, Meta = (AllowPrivateAccess))
 	FRotator ViewRotation;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient, Meta = (AllowPrivateAccess))
-	FAlsViewCharacterState ViewState;
+	FAlsViewState ViewState;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient, Meta = (AllowPrivateAccess))
-	FAlsMantlingState MantlingState;
+	int32 MantlingRootMotionSourceId;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient, Replicated, Meta = (AllowPrivateAccess))
 	FVector_NetQuantize RagdollTargetLocation;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State|Als Character", Transient, Meta = (AllowPrivateAccess))
-	FAlsRagdollingCharacterState RagdollingState;
+	FAlsRagdollingState RagdollingState;
 
 	FTimerHandle LandedGroundFrictionResetTimer;
 
@@ -138,8 +110,6 @@ public:
 
 	virtual void Tick(float DeltaTime) override;
 
-	virtual void AddMovementInput(FVector Direction, float Scale = 1.0f, bool bForce = false) override;
-
 	virtual void Jump() override;
 
 	virtual void OnMovementModeChanged(EMovementMode PreviousMode, uint8 PreviousCustomMode = 0) override;
@@ -150,7 +120,8 @@ public:
 
 	virtual void OnJumped_Implementation() override;
 
-	virtual void Landed(const FHitResult& Hit) override;
+private:
+	void PhysicsRotation(float DeltaTime);
 
 	// Desired Stance
 
@@ -271,7 +242,7 @@ private:
 	// Overlay Mode
 
 public:
-	const FGameplayTag& GetOverlayMode() const;
+	FGameplayTag GetOverlayMode() const;
 
 	UFUNCTION(BlueprintCallable, Category = "ALS|Als Character", Meta = (AutoCreateRefTerm = "NewModeTag"))
 	void SetOverlayMode(const FGameplayTag& NewModeTag);
@@ -304,22 +275,22 @@ protected:
 	// Locomotion Action
 
 public:
-	EAlsLocomotionAction GetLocomotionAction() const;
+	FGameplayTag GetLocomotionAction() const;
 
-	void SetLocomotionAction(EAlsLocomotionAction NewAction);
+	void SetLocomotionAction(const FGameplayTag& NewActionTag);
 
-	void NotifyLocomotionActionChanged(EAlsLocomotionAction PreviousAction);
+	void NotifyLocomotionActionChanged(const FGameplayTag& PreviousActionTag);
 
 protected:
 	UFUNCTION(BlueprintNativeEvent, Category = "ALS|Als Character")
-	void OnLocomotionActionChanged(EAlsLocomotionAction PreviousAction);
+	void OnLocomotionActionChanged(const FGameplayTag& PreviousActionTag);
 
 	// Locomotion
 
 public:
 	const FVector& GetInputDirection() const;
 
-	const FAlsLocomotionCharacterState& GetLocomotionState() const;
+	const FAlsLocomotionState& GetLocomotionState() const;
 
 private:
 	void SetInputDirection(FVector NewInputDirection);
@@ -342,7 +313,7 @@ private:
 	void ServerSetViewRotation(const FRotator& NewViewRotation);
 
 public:
-	const FAlsViewCharacterState& GetViewState() const;
+	const FAlsViewState& GetViewState() const;
 
 private:
 	void RefreshView(float DeltaTime);
@@ -364,6 +335,10 @@ protected:
 	float CalculateActorRotationSpeed() const;
 
 private:
+	void ApplyRotationYawSpeed(float DeltaTime);
+
+	void ResetRotationYawSpeed();
+
 	void RefreshInAirActorRotation(float DeltaTime);
 
 protected:
@@ -376,10 +351,11 @@ protected:
 
 	void RefreshActorRotationInstant(float TargetYawAngle, ETeleportType Teleport = ETeleportType::None);
 
-	void RefreshActorRotation(float TargetYawAngle, float DeltaTime, float ActorRotationSpeed);
+	void RefreshActorRotation(float TargetYawAngle, float DeltaTime, float ActorRotationInterpolationSpeed);
 
 	void RefreshActorRotationExtraSmooth(float TargetYawAngle, float DeltaTime,
-	                                     float ActorRotationSpeed, float TargetYawAngleRotationSpeed);
+	                                     float ActorRotationInterpolationSpeed,
+	                                     float TargetYawAngleRotationSpeed);
 
 	// Rotation Lock
 
@@ -408,11 +384,6 @@ private:
 	// Landing
 
 private:
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastOnLandedNetworked();
-
-	void OnLandedNetworked();
-
 	void OnLandedGroundFrictionReset() const;
 
 	// Mantling
@@ -438,13 +409,15 @@ private:
 
 protected:
 	UFUNCTION(BlueprintNativeEvent, Category = "ALS|Als Character")
-	FAlsMantlingSettings SelectMantlingSettings(EAlsMantlingType MantlingType);
+	UAlsMantlingSettings* SelectMantlingSettings(EAlsMantlingType MantlingType);
 
 	UFUNCTION(BlueprintNativeEvent, Category = "ALS|Als Character")
 	void OnMantlingStarted(const FAlsMantlingParameters& Parameters);
 
 private:
 	void RefreshMantling();
+
+	void StopMantling();
 
 protected:
 	UFUNCTION(BlueprintNativeEvent, Category = "ALS|Als Character")
@@ -521,12 +494,14 @@ private:
 	void StartRolling(float PlayRate, float TargetYawAngle);
 
 	UFUNCTION(Server, Reliable)
-	void ServerStartRolling(UAnimMontage* Montage, float PlayRate, float TargetYawAngle);
+	void ServerStartRolling(UAnimMontage* Montage, float PlayRate, float StartYawAngle, float TargetYawAngle);
 
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastStartRolling(UAnimMontage* Montage, float PlayRate, float TargetYawAngle);
+	void MulticastStartRolling(UAnimMontage* Montage, float PlayRate, float StartYawAngle, float TargetYawAngle);
 
-	void StartRollingImplementation(UAnimMontage* Montage, float PlayRate, float TargetYawAngle);
+	void StartRollingImplementation(UAnimMontage* Montage, float PlayRate, float StartYawAngle, float TargetYawAngle);
+
+	void RefreshRollingPhysics(float DeltaTime);
 
 	// Debug
 
@@ -547,21 +522,6 @@ private:
 
 	void DisplayDebugMantling(const UCanvas* Canvas, float Scale, float HorizontalPosition, float& VerticalPosition) const;
 };
-
-inline const FVector& AAlsCharacter::GetInputDirection() const
-{
-	return InputDirection;
-}
-
-inline const FAlsLocomotionCharacterState& AAlsCharacter::GetLocomotionState() const
-{
-	return LocomotionState;
-}
-
-inline const FAlsViewCharacterState& AAlsCharacter::GetViewState() const
-{
-	return ViewState;
-}
 
 inline EAlsStance AAlsCharacter::GetDesiredStance() const
 {
@@ -603,7 +563,7 @@ inline EAlsViewMode AAlsCharacter::GetViewMode() const
 	return ViewMode;
 }
 
-inline const FGameplayTag& AAlsCharacter::GetOverlayMode() const
+inline FGameplayTag AAlsCharacter::GetOverlayMode() const
 {
 	return OverlayMode;
 }
@@ -613,7 +573,22 @@ inline EAlsLocomotionMode AAlsCharacter::GetLocomotionMode() const
 	return LocomotionMode;
 }
 
-inline EAlsLocomotionAction AAlsCharacter::GetLocomotionAction() const
+inline FGameplayTag AAlsCharacter::GetLocomotionAction() const
 {
 	return LocomotionAction;
+}
+
+inline const FVector& AAlsCharacter::GetInputDirection() const
+{
+	return InputDirection;
+}
+
+inline const FAlsLocomotionState& AAlsCharacter::GetLocomotionState() const
+{
+	return LocomotionState;
+}
+
+inline const FAlsViewState& AAlsCharacter::GetViewState() const
+{
+	return ViewState;
 }

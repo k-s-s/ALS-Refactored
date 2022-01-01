@@ -11,17 +11,18 @@ struct ALS_API FAlsRigUnit_MathBase : public FRigUnit
 };
 
 USTRUCT(Meta = (Abstract, NodeColor = "0.4 0.05 0.4"))
-struct FAlsRigUnit_HighLevelBaseMutable : public FRigUnitMutable
+struct ALS_API FAlsRigUnit_HighLevelBaseMutable : public FRigUnitMutable
 {
 	GENERATED_BODY()
 };
 
 // Calculates the intersection location and direction of the perpendicular to line AC through point B.
-USTRUCT(Meta = (DisplayName = "Calculate Pole Vector", Category = "ALS|Als", Varying))
+USTRUCT(DisplayName = "Calculate Pole Vector", Meta = (Category = "ALS|Als", Varying))
 struct ALS_API FAlsRigUnit_CalculatePoleVector : public FAlsRigUnit_MathBase
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(Meta = (Input, ExpandByDefault))
 	FRigElementKey ItemA;
 
@@ -55,15 +56,17 @@ struct ALS_API FAlsRigUnit_CalculatePoleVector : public FAlsRigUnit_MathBase
 	// UPROPERTY()
 	// FCachedRigElement CachedItemCIndex;
 
+public:
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };
 
-USTRUCT(Meta = (DisplayName = "Hand Ik Retargeting", Category = "ALS|Als"))
+USTRUCT(DisplayName = "Hand Ik Retargeting", Meta = (Category = "ALS|Als"))
 struct ALS_API FAlsRigUnit_HandIkRetargeting : public FAlsRigUnit_HighLevelBaseMutable
 {
 	GENERATED_BODY()
 
+public:
 	UPROPERTY(Meta = (Input, ExpandByDefault))
 	FRigElementKey LeftHandBone;
 
@@ -89,6 +92,7 @@ struct ALS_API FAlsRigUnit_HandIkRetargeting : public FAlsRigUnit_HighLevelBaseM
 	UPROPERTY(Meta = (Input, Constant))
 	bool bPropagateToChildren{false};
 
+public:
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 };

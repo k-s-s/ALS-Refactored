@@ -2,22 +2,64 @@
 
 #include "DrawDebugHelpers.h"
 
-float UAlsMath::InterpolateAngleConstant(const float CurrentAngle, const float TargetAngle,
-                                         const float DeltaTime, const float InterpolationSpeed)
+namespace SpringInterpolationConstants
 {
-	if (DeltaTime <= 0.0f || CurrentAngle == TargetAngle)
-	{
-		return CurrentAngle;
-	}
+	static constexpr float MaxDeltaTime{0.1f};
+	static constexpr float SubstepDeltaTime{1.0f / 60.0f};
+}
 
-	if (InterpolationSpeed <= 0.0f)
-	{
-		// If no interpolation speed, then jump to target value.
-		return TargetAngle;
-	}
+float UAlsMath::InterpolateFloatSpringStable(const float Current, const float Target, FFloatSpringState& SpringState,
+                                             const float Stiffness, const float CriticalDampingFactor, float DeltaTime, const float Mass)
+{
+	// Clamp to avoid large delta time.
+	DeltaTime = FMath::Min(DeltaTime, SpringInterpolationConstants::MaxDeltaTime);
 
-	const auto Step{InterpolationSpeed * DeltaTime};
-	return FRotator::NormalizeAxis(CurrentAngle + FMath::Clamp(FRotator::NormalizeAxis(TargetAngle - CurrentAngle), -Step, Step));
+	auto Result{Current};
+	auto PreviousSubstepTime{0.0f};
+
+	for (auto SubstepNumber{1};; SubstepNumber++)
+	{
+		const auto SubstepTime{SubstepNumber * SpringInterpolationConstants::SubstepDeltaTime};
+		if (SubstepTime < DeltaTime - SMALL_NUMBER)
+		{
+			Result = UKismetMathLibrary::FloatSpringInterp(Result, Target, SpringState, Stiffness, CriticalDampingFactor,
+			                                               SpringInterpolationConstants::SubstepDeltaTime, Mass);
+
+			PreviousSubstepTime = SubstepTime;
+		}
+		else
+		{
+			return UKismetMathLibrary::FloatSpringInterp(Result, Target, SpringState, Stiffness, CriticalDampingFactor,
+			                                             DeltaTime - PreviousSubstepTime, Mass);
+		}
+	}
+}
+
+FVector UAlsMath::InterpolateVectorSpringStable(const FVector& Current, const FVector& Target, FVectorSpringState& SpringState,
+                                                const float Stiffness, const float CriticalDampingFactor, float DeltaTime, const float Mass)
+{
+	// Clamp to avoid large delta time.
+	DeltaTime = FMath::Min(DeltaTime, SpringInterpolationConstants::MaxDeltaTime);
+
+	auto Result{Current};
+	auto PreviousSubstepTime{0.0f};
+
+	for (auto SubstepNumber{1};; SubstepNumber++)
+	{
+		const auto SubstepTime{SubstepNumber * SpringInterpolationConstants::SubstepDeltaTime};
+		if (SubstepTime < DeltaTime - SMALL_NUMBER)
+		{
+			Result = UKismetMathLibrary::VectorSpringInterp(Result, Target, SpringState, Stiffness, CriticalDampingFactor,
+			                                                SpringInterpolationConstants::SubstepDeltaTime, Mass);
+
+			PreviousSubstepTime = SubstepTime;
+		}
+		else
+		{
+			return UKismetMathLibrary::VectorSpringInterp(Result, Target, SpringState, Stiffness, CriticalDampingFactor,
+			                                              DeltaTime - PreviousSubstepTime, Mass);
+		}
+	}
 }
 
 FVector UAlsMath::SlerpSkipNormalization(const FVector& From, const FVector& To, const float Alpha)

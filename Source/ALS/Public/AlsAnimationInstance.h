@@ -2,15 +2,7 @@
 
 #include "GameplayTagContainer.h"
 #include "Animation/AnimInstance.h"
-#include "Settings/AlsDynamicTransitionSettings.h"
-#include "Settings/AlsFeetSettings.h"
-#include "Settings/AlsGeneralAnimationSettings.h"
-#include "Settings/AlsInAirSettings.h"
-#include "Settings/AlsMovementAnimationSettings.h"
-#include "Settings/AlsRotateInPlaceSettings.h"
-#include "Settings/AlsTurnInPlaceSettings.h"
 #include "State/Enumerations/AlsGait.h"
-#include "State/Enumerations/AlsLocomotionAction.h"
 #include "State/Enumerations/AlsLocomotionMode.h"
 #include "State/Enumerations/AlsMovementDirection.h"
 #include "State/Enumerations/AlsRotationMode.h"
@@ -29,6 +21,7 @@
 
 #include "AlsAnimationInstance.generated.h"
 
+class UAlsAnimationInstanceSettings;
 class AAlsCharacter;
 
 UCLASS()
@@ -37,32 +30,19 @@ class ALS_API UAlsAnimationInstance : public UAnimInstance
 	GENERATED_BODY()
 
 private:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings", Meta = (AllowPrivateAccess))
-	FAlsGeneralAnimationSettings GeneralSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings", Meta = (AllowPrivateAccess))
-	FAlsFeetSettings FeetSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings", Meta = (AllowPrivateAccess))
-	FAlsMovementAnimationSettings MovementSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings", Meta = (AllowPrivateAccess))
-	FAlsRotateInPlaceSettings RotateInPlaceSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings", Meta = (AllowPrivateAccess))
-	FAlsGeneralTurnInPlaceSettings TurnInPlaceSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings", Meta = (AllowPrivateAccess))
-	FAlsDynamicTransitionSettings DynamicTransitionSettings;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings", Meta = (AllowPrivateAccess))
-	FAlsInAirSettings InAirSettings;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings", Meta = (AllowPrivateAccess))
+	UAlsAnimationInstanceSettings* Settings;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
 	AAlsCharacter* AlsCharacter;
 
+	// Used to indicate that the animation blueprint has not been updated for a long time
+	// and its current state may be incorrect (such as foot location used in foot locking).
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
-	bool bRotationYawSpeedAppliedThisFrame;
+	bool bPendingUpdate;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
+	bool bRotationYawSpeedChanged{true};
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
 	bool bAllowDynamicTransitions{true};
@@ -83,10 +63,10 @@ private:
 	FGameplayTag OverlayMode;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
-	FAlsLocomotionMode LocomotionMode;
+	FAlsLocomotionMode LocomotionMode{EAlsLocomotionMode::Grounded};
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
-	FAlsLocomotionAction LocomotionAction;
+	FGameplayTag LocomotionAction;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
 	FAlsMovementDirection MovementDirection;
@@ -131,18 +111,20 @@ private:
 	FTimerHandle JumpResetTimer;
 
 public:
-	UAlsAnimationInstance();
-
 	virtual void NativeInitializeAnimation() override;
+
+	virtual void NativeBeginPlay() override;
 
 	virtual void NativeUpdateAnimation(float DeltaTime) override;
 
 	// Core
 
 public:
-	bool IsRotationYawSpeedAppliedThisFrame() const;
+	void SetPendingUpdate(bool bNewPendingUpdate);
 
-	void SetRotationYawSpeedAppliedThisFrame(bool bApplied);
+	bool IsRotationYawSpeedChanged() const;
+
+	void SetRotationYawSpeedChanged(bool bChanged);
 
 	EAlsRotationMode GetRotationMode() const;
 
@@ -165,16 +147,22 @@ protected:
 private:
 	void RefreshFeet(float DeltaTime);
 
-	void HandleFootLockChangedBase(FAlsFootState& FootState, const FName& FootBoneName,
-	                               const FVector& BaseLocation, const FQuat& BaseRotation) const;
+	void HandleFootLockChangedBase(FAlsFootState& FootState, const FName& FootBoneName, const FVector& BaseLocation,
+	                               const FQuat& BaseRotation, const FTransform& RelativeTransform) const;
 
-	void RefreshFootLock(FAlsFootState& FootState, const FName& FootBoneName, const FName& FootLockCurveName, float DeltaTime) const;
+	void RefreshFootLock(FAlsFootState& FootState, const FName& FootBoneName,
+	                     const FName& FootLockCurveName, const FTransform& RelativeTransform,
+	                     float DeltaTime, FVector& FinalLocation, FQuat& FinalRotation) const;
 
-	void RefreshFootOffset(FAlsFootState& FootState, FVector& TargetLocationOffset, float DeltaTime) const;
+	void RefreshFootOffset(FAlsFootState& FootState, float DeltaTime, FVector& TargetLocationOffset,
+	                       FVector& FinalLocation, FQuat& FinalRotation) const;
 
-	static void ResetFootOffset(FAlsFootState& FootState, float DeltaTime);
+	static void ResetFootOffset(FAlsFootState& FootState, float DeltaTime, FVector& FinalLocation, FQuat& FinalRotation);
 
-	void RefreshPelvisOffset(float DeltaTime, const FVector& TargetFootLeftLocationOffset, const FVector& TargetFootRightLocationOffset);
+	static void RefreshFinalFootState(FAlsFootState& FootState, const FTransform& RelativeTransform,
+	                                  const FVector& FinalLocation, const FQuat& FinalRotation);
+
+	void RefreshPelvisOffset(float DeltaTime, float TargetFootLeftLocationOffsetZ, float TargetFootRightLocationOffsetZ);
 
 	// Grounded Movement
 
@@ -186,9 +174,9 @@ public:
 	void SetHipsDirection(EAlsHipsDirection NewDirection);
 
 private:
-	EAlsMovementDirection CalculateMovementDirection() const;
-
 	void RefreshMovement(float DeltaTime);
+
+	EAlsMovementDirection CalculateMovementDirection() const;
 
 	void RefreshVelocityBlend(const float DeltaTime);
 
@@ -285,14 +273,19 @@ public:
 	float GetCurveValueClamped01(const FName& CurveName) const;
 };
 
-inline bool UAlsAnimationInstance::IsRotationYawSpeedAppliedThisFrame() const
+inline void UAlsAnimationInstance::SetPendingUpdate(const bool bNewPendingUpdate)
 {
-	return bRotationYawSpeedAppliedThisFrame;
+	bPendingUpdate = bNewPendingUpdate;
 }
 
-inline void UAlsAnimationInstance::SetRotationYawSpeedAppliedThisFrame(const bool bApplied)
+inline bool UAlsAnimationInstance::IsRotationYawSpeedChanged() const
 {
-	bRotationYawSpeedAppliedThisFrame = bApplied;
+	return bRotationYawSpeedChanged;
+}
+
+inline void UAlsAnimationInstance::SetRotationYawSpeedChanged(const bool bChanged)
+{
+	bRotationYawSpeedChanged = bChanged;
 }
 
 inline EAlsRotationMode UAlsAnimationInstance::GetRotationMode() const
@@ -318,18 +311,4 @@ inline void UAlsAnimationInstance::SetGroundedEntryMode(const FGameplayTag& NewM
 inline void UAlsAnimationInstance::SetHipsDirection(const EAlsHipsDirection NewDirection)
 {
 	MovementState.HipsDirection = NewDirection;
-}
-
-inline UAnimSequenceBase* UAlsAnimationInstance::SelectDynamicTransitionForLeftFoot() const
-{
-	return Stance.IsCrouching()
-		       ? DynamicTransitionSettings.CrouchingTransitionLeftAnimation
-		       : DynamicTransitionSettings.StandingTransitionLeftAnimation;
-}
-
-inline UAnimSequenceBase* UAlsAnimationInstance::SelectDynamicTransitionForRightFoot() const
-{
-	return Stance.IsCrouching()
-		       ? DynamicTransitionSettings.CrouchingTransitionRightAnimation
-		       : DynamicTransitionSettings.StandingTransitionRightAnimation;
 }
