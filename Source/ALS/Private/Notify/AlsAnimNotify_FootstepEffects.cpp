@@ -18,9 +18,9 @@ FString UAlsAnimNotify_FootstepEffects::GetNotifyName_Implementation() const
 	return FString::Format(TEXT("Als Footstep Effects: {0}"), {GetEnumValueString(FootBone)});
 }
 
-void UAlsAnimNotify_FootstepEffects::Notify(USkeletalMeshComponent* MeshComponent, UAnimSequenceBase* Animation)
+void UAlsAnimNotify_FootstepEffects::Notify(USkeletalMeshComponent* MeshComponent, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
-	Super::Notify(MeshComponent, Animation);
+	Super::Notify(MeshComponent, Animation, EventReference);
 
 	if (!IsValid(MeshComponent) || !IsValid(FootstepEffectsSettings))
 	{

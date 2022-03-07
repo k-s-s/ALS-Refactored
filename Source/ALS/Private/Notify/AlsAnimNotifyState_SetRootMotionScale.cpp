@@ -15,9 +15,9 @@ FString UAlsAnimNotifyState_SetRootMotionScale::GetNotifyName_Implementation() c
 }
 
 void UAlsAnimNotifyState_SetRootMotionScale::NotifyBegin(USkeletalMeshComponent* MeshComponent, UAnimSequenceBase* Animation,
-                                                         const float TotalDuration)
+                                                         const float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
-	Super::NotifyBegin(MeshComponent, Animation, TotalDuration);
+	Super::NotifyBegin(MeshComponent, Animation, TotalDuration, EventReference);
 
 	auto* Character{Cast<ACharacter>(MeshComponent->GetOwner())};
 	if (IsValid(Character) && Character->GetLocalRole() >= ROLE_AutonomousProxy)
@@ -26,9 +26,9 @@ void UAlsAnimNotifyState_SetRootMotionScale::NotifyBegin(USkeletalMeshComponent*
 	}
 }
 
-void UAlsAnimNotifyState_SetRootMotionScale::NotifyEnd(USkeletalMeshComponent* MeshComponent, UAnimSequenceBase* Animation)
+void UAlsAnimNotifyState_SetRootMotionScale::NotifyEnd(USkeletalMeshComponent* MeshComponent, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
-	Super::NotifyEnd(MeshComponent, Animation);
+	Super::NotifyEnd(MeshComponent, Animation, EventReference);
 
 	auto* Character{Cast<ACharacter>(MeshComponent->GetOwner())};
 	if (IsValid(Character) && Character->GetLocalRole() >= ROLE_AutonomousProxy)

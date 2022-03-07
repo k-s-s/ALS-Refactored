@@ -14,9 +14,9 @@ FString UAlsAnimNotifyState_EarlyBlendOut::GetNotifyName_Implementation() const
 }
 
 void UAlsAnimNotifyState_EarlyBlendOut::NotifyTick(USkeletalMeshComponent* MeshComponent, UAnimSequenceBase* Animation,
-                                                   const float DeltaTime)
+                                                   const float DeltaTime, const FAnimNotifyEventReference& EventReference)
 {
-	Super::NotifyTick(MeshComponent, Animation, DeltaTime);
+	Super::NotifyTick(MeshComponent, Animation, DeltaTime, EventReference);
 
 	const auto* Montage{Cast<UAnimMontage>(Animation)};
 	if (!IsValid(Montage))

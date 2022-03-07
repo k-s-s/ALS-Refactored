@@ -23,17 +23,17 @@ UCLASS()
 class ALS_API AAlsCharacter : public ACharacter
 {
 	GENERATED_BODY()
-
-private:
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Meta = (AllowPrivateAccess))
-	UAlsCharacterMovementComponent* AlsCharacterMovement;
-
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character", Meta = (AllowPrivateAccess))
 	UAlsCharacterSettings* Settings;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings|Als Character", Meta = (AllowPrivateAccess))
 	UAlsMovementSettings* MovementSettings;
 
+private:
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Meta = (AllowPrivateAccess))
+	UAlsCharacterMovementComponent* AlsCharacterMovement;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings|Als Character|Desired State", Replicated, Meta = (AllowPrivateAccess))
 	EAlsStance DesiredStance;
 
@@ -101,8 +101,9 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
+	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void PostInitializeComponents() override;
-
+	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 
 public:
@@ -332,7 +333,7 @@ protected:
 
 	void RefreshGroundedNotMovingAimingActorRotation(float DeltaTime);
 
-	float CalculateActorRotationSpeed() const;
+	virtual float CalculateActorRotationSpeed() const;
 
 private:
 	void ApplyRotationYawSpeed(float DeltaTime);

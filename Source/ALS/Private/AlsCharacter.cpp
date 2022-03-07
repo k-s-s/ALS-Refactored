@@ -14,7 +14,7 @@
 #include "Utility/GameplayTags/AlsLocomotionActionTags.h"
 
 AAlsCharacter::AAlsCharacter(const FObjectInitializer& ObjectInitializer) : Super(
-	ObjectInitializer.SetDefaultSubobjectClass<UAlsCharacterMovementComponent>(CharacterMovementComponentName))
+		ObjectInitializer.SetDefaultSubobjectClass<UAlsCharacterMovementComponent>(CharacterMovementComponentName))
 {
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -58,6 +58,11 @@ void AAlsCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLif
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, RagdollTargetLocation, Parameters)
 }
 
+void AAlsCharacter::OnConstruction(const FTransform& transform)
+{
+	Super::OnConstruction(transform);
+}
+
 void AAlsCharacter::PostInitializeComponents()
 {
 	check(IsValid(Settings))
@@ -83,7 +88,7 @@ void AAlsCharacter::PostInitializeComponents()
 
 	AlsCharacterMovement->SetMovementSettings(MovementSettings);
 
-	AlsAnimationInstance = CastChecked<UAlsAnimationInstance>(GetMesh()->GetAnimInstance());
+	AlsAnimationInstance = Cast<UAlsAnimationInstance>(GetMesh()->GetAnimInstance());
 
 	// Set default rotation values.
 
@@ -95,6 +100,11 @@ void AAlsCharacter::PostInitializeComponents()
 
 	ViewState.SmoothRotation = ViewRotation;
 	ViewState.PreviousSmoothYawAngle = ViewRotation.Yaw;
+}
+
+void AAlsCharacter::PreInitializeComponents()
+{
+	Super::PreInitializeComponents();
 }
 
 void AAlsCharacter::BeginPlay()
@@ -134,7 +144,7 @@ void AAlsCharacter::Tick(const float DeltaTime)
 			? EVisibilityBasedAnimTickOption::AlwaysTickPose
 			: EVisibilityBasedAnimTickOption::OnlyTickMontagesWhenNotRendered;
 
-	if (!GetMesh()->bRecentlyRendered && GetMesh()->VisibilityBasedAnimTickOption > EVisibilityBasedAnimTickOption::AlwaysTickPose)
+	if (AlsAnimationInstance && !GetMesh()->bRecentlyRendered && GetMesh()->VisibilityBasedAnimTickOption > EVisibilityBasedAnimTickOption::AlwaysTickPose)
 	{
 		AlsAnimationInstance->SetPendingUpdate(true);
 	}
@@ -702,10 +712,10 @@ FTransform AAlsCharacter::CalculateNetworkSmoothedTransform() const
 
 void AAlsCharacter::RefreshLocomotionLocationAndRotation()
 {
+	return;
 	const auto& ActorTransform{GetActorTransform()};
 
 	// If network smoothing is disabled, then return regular actor transform.
-
 	if (GetCharacterMovement()->NetworkSmoothingMode == ENetworkSmoothingMode::Disabled)
 	{
 		LocomotionState.Location = ActorTransform.GetLocation();
@@ -913,7 +923,7 @@ float AAlsCharacter::CalculateActorRotationSpeed() const
 
 void AAlsCharacter::ApplyRotationYawSpeed(const float DeltaTime)
 {
-	if (!AlsAnimationInstance->IsRotationYawSpeedChanged())
+	if (!AlsAnimationInstance || !AlsAnimationInstance->IsRotationYawSpeedChanged())
 	{
 		// Skip actor rotation modification because animation blueprint has not been updated
 		// yet (probably animation blueprint has a lower tick rate than the character).

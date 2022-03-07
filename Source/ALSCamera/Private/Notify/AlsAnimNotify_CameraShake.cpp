@@ -9,9 +9,9 @@ FString UAlsAnimNotify_CameraShake::GetNotifyName_Implementation() const
 	return FString::Format(TEXT("Als Camera Shake: {0}"), {IsValid(CameraShakeClass) ? CameraShakeClass->GetName() : TEXT("None")});
 }
 
-void UAlsAnimNotify_CameraShake::Notify(USkeletalMeshComponent* MeshComponent, UAnimSequenceBase* Animation)
+void UAlsAnimNotify_CameraShake::Notify(USkeletalMeshComponent* MeshComponent, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
-	Super::Notify(MeshComponent, Animation);
+	Super::Notify(MeshComponent, Animation, EventReference);
 
 	const auto* Pawn{Cast<APawn>(MeshComponent->GetOwner())};
 	if (!IsValid(Pawn))

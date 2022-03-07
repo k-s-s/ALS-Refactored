@@ -101,7 +101,7 @@ UAlsCharacterMovementComponent::UAlsCharacterMovementComponent()
 	MaxAcceleration = 1500.0f;
 
 	BrakingFrictionFactor = 0.0f;
-	CrouchedHalfHeight = 56.0f;
+	SetCrouchedHalfHeight(56.0f);
 	bRunPhysicsWithNoController = true;
 
 	MinAnalogWalkSpeed = 25.0f;
