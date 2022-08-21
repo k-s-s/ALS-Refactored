@@ -2,13 +2,19 @@
 
 #include "Engine/DataAsset.h"
 #include "Engine/EngineTypes.h"
-#include "State/Enumerations/AlsMantlingType.h"
-
 #include "AlsMantlingSettings.generated.h"
 
 class UAnimMontage;
 class UCurveFloat;
 class UCurveVector;
+
+UENUM(BlueprintType)
+enum class EAlsMantlingType : uint8
+{
+	High,
+	Low,
+	InAir
+};
 
 USTRUCT(BlueprintType)
 struct ALS_API FAlsMantlingParameters
@@ -19,7 +25,7 @@ struct ALS_API FAlsMantlingParameters
 	TWeakObjectPtr<UPrimitiveComponent> TargetPrimitive;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector_NetQuantize10 TargetRelativeLocation{ForceInit};
+	FVector_NetQuantize100 TargetRelativeLocation{ForceInit};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FRotator TargetRelativeRotation{ForceInit};
@@ -37,24 +43,24 @@ class ALS_API UAlsMantlingSettings : public UDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UAnimMontage* Montage{nullptr};
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TObjectPtr<UAnimMontage> Montage;
 
 	// Mantling time to blend in amount curve.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UCurveFloat* BlendInCurve{nullptr};
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TObjectPtr<UCurveFloat> BlendInCurve;
 
 	// Mantling time to interpolation, horizontal and vertical correction amounts curve.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UCurveVector* InterpolationAndCorrectionAmountsCurve{nullptr};
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TObjectPtr<UCurveVector> InterpolationAndCorrectionAmountsCurve;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FVector StartRelativeLocation{-65.0f, 0.0f, -100.0f};
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Meta = (ClampMin = 0))
 	FVector2D ReferenceHeight{50.0f, 100.0f};
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Meta = (ClampMin = 0))
 	FVector2D StartTime{0.5f, 0.0f};
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Meta = (ClampMin = 0))
@@ -84,10 +90,10 @@ struct ALS_API FAlsMantlingTraceSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0))
 	FVector2D LedgeHeight{50.0f, 225.0f};
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0, ForceUnits = "cm"))
 	float ReachDistance{75.0f};
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0, ForceUnits = "cm"))
 	float TargetLocationOffset{15.0f};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0))
@@ -102,15 +108,18 @@ struct ALS_API FAlsGeneralMantlingSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bAllowMantling{true};
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0, ClampMax = 180))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0, ClampMax = 180, ForceUnits = "deg"))
 	float TraceAngleThreshold{110.0f};
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0, ClampMax = 180))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0, ClampMax = 180, ForceUnits = "deg"))
 	float MaxReachAngle{50.0f};
 
 	// If a dynamic object has a speed bigger than this value, then do not start mantling.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ForceUnits = "cm/s"))
 	float TargetPrimitiveSpeedThreshold{10.0f};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ForceUnits = "cm"))
+	float MantlingHighHeightThreshold{125.0f};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FAlsMantlingTraceSettings GroundedTrace;

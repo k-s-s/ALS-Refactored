@@ -1,13 +1,12 @@
 #include "AlsCameraComponent.h"
 
-#include "AlsCameraAnimationInstance.h"
 #include "AlsCameraSettings.h"
 #include "AlsCharacter.h"
-#include "DisplayDebugHelpers.h"
 #include "DrawDebugHelpers.h"
-#include "Camera/CameraTypes.h"
-#include "Engine/Canvas.h"
+#include "Animation/AnimInstance.h"
+#include "Components/CapsuleComponent.h"
 #include "Utility/AlsCameraConstants.h"
+#include "Utility/AlsMacros.h"
 #include "Utility/AlsUtility.h"
 
 UAlsCameraComponent::UAlsCameraComponent()
@@ -17,13 +16,11 @@ UAlsCameraComponent::UAlsCameraComponent()
 
 	bTickInEditor = false;
 	bHiddenInGame = true;
-
-	AnimClass = UAlsCameraAnimationInstance::StaticClass();
 }
 
 void UAlsCameraComponent::OnRegister()
 {
-	AlsCharacter = Cast<AAlsCharacter>(GetOwner());
+	Character = Cast<AAlsCharacter>(GetOwner());
 
 	Super::OnRegister();
 }
@@ -38,17 +35,14 @@ void UAlsCameraComponent::Activate(const bool bReset)
 
 	Super::Activate(bReset);
 
-	if (IsValid(GetAnimInstance()) && IsValid(Settings) && IsValid(AlsCharacter))
-	{
-		TickCamera(0.0f, false);
-	}
+	TickCamera(0.0f, false);
 }
 
 void UAlsCameraComponent::BeginPlay()
 {
-	check(IsValid(GetAnimInstance()));
-	check(IsValid(Settings));
-	check(IsValid(AlsCharacter));
+	ALS_ENSURE(IsValid(GetAnimInstance()));
+	ALS_ENSURE(IsValid(Settings));
+	ALS_ENSURE(IsValid(Character));
 
 	Super::BeginPlay();
 }
@@ -62,23 +56,23 @@ void UAlsCameraComponent::TickComponent(const float DeltaTime, const ELevelTick 
 
 FVector UAlsCameraComponent::GetFirstPersonCameraLocation() const
 {
-	return AlsCharacter->GetMesh()->GetSocketLocation(Settings->FirstPerson.CameraSocket);
+	return Character->GetMesh()->GetSocketLocation(Settings->FirstPerson.CameraSocketName);
 }
 
 FTransform UAlsCameraComponent::GetThirdPersonPivotTransform() const
 {
 	return {
 		GetComponentRotation(),
-		(AlsCharacter->GetMesh()->GetSocketLocation(Settings->ThirdPerson.FirstPivotSocket) +
-		 AlsCharacter->GetMesh()->GetSocketLocation(Settings->ThirdPerson.SecondPivotSocket)) * 0.5f
+		(Character->GetMesh()->GetSocketLocation(Settings->ThirdPerson.FirstPivotSocketName) +
+		 Character->GetMesh()->GetSocketLocation(Settings->ThirdPerson.SecondPivotSocketName)) * 0.5f
 	};
 }
 
 FVector UAlsCameraComponent::GetThirdPersonTraceStartLocation() const
 {
-	return AlsCharacter->GetMesh()->GetSocketLocation(bRightShoulder
-		                                                  ? Settings->ThirdPerson.RightTraceShoulderSocket
-		                                                  : Settings->ThirdPerson.LeftTraceShoulderSocket);
+	return Character->GetMesh()->GetSocketLocation(bRightShoulder
+		                                               ? Settings->ThirdPerson.TraceShoulderRightSocketName
+		                                               : Settings->ThirdPerson.TraceShoulderLeftSocketName);
 }
 
 void UAlsCameraComponent::GetViewInfo(FMinimalViewInfo& ViewInfo) const
@@ -89,7 +83,7 @@ void UAlsCameraComponent::GetViewInfo(FMinimalViewInfo& ViewInfo) const
 
 	ViewInfo.PostProcessBlendWeight = IsValid(Settings) ? PostProcessWeight : 0.0f;
 
-	if (ViewInfo.PostProcessBlendWeight)
+	if (ViewInfo.PostProcessBlendWeight > SMALL_NUMBER)
 	{
 		ViewInfo.PostProcessSettings = Settings->PostProcess;
 	}
@@ -97,29 +91,33 @@ void UAlsCameraComponent::GetViewInfo(FMinimalViewInfo& ViewInfo) const
 
 void UAlsCameraComponent::TickCamera(const float DeltaTime, const bool bAllowLag)
 {
+	if (!IsValid(GetAnimInstance()) || !IsValid(Settings) || !IsValid(Character))
+	{
+		return;
+	}
+
 #if ENABLE_DRAW_DEBUG
 	const auto bDisplayDebugCameraShapes{UAlsUtility::ShouldDisplayDebug(GetOwner(), UAlsCameraConstants::CameraShapesDisplayName())};
 #else
 	const auto bDisplayDebugCameraShapes{false};
 #endif
 
-	// Calculate camera rotation. Use raw rotation locally and smooth rotation on remote clients.
+	// Calculate camera rotation.
 
 	const auto CameraTargetRotation{
-		AlsCharacter->IsLocallyControlled()
-			? AlsCharacter->GetViewRotation()
-			: AlsCharacter->GetViewState().SmoothRotation
+		Character->GetViewState().NetworkSmoothing.bEnabled || Character->IsLocallyControlled()
+			? Character->GetViewState().NetworkSmoothing.Rotation
+			: Character->GetViewState().Rotation
 	};
 
 	CameraRotation = CalculateCameraRotation(CameraTargetRotation, DeltaTime, bAllowLag);
-	CameraRotation.Normalize();
 
 	const auto PivotTargetTransform{GetThirdPersonPivotTransform()};
 
 	PivotTargetLocation = PivotTargetTransform.GetLocation();
 
 	const auto FirstPersonOverride{UAlsMath::Clamp01(GetAnimInstance()->GetCurveValue(UAlsCameraConstants::FirstPersonOverrideCurve()))};
-	if (FirstPersonOverride >= 1.0f)
+	if (FAnimWeight::IsFullWeight(FirstPersonOverride))
 	{
 		PivotLagLocation = PivotTargetLocation;
 		PivotLocation = PivotTargetLocation;
@@ -138,7 +136,7 @@ void UAlsCameraComponent::TickCamera(const float DeltaTime, const bool bAllowLag
 	}
 #endif
 
-	// Calculate pivot lag location. Get the pivot target location and interpolate using axis independent lag for maximum control.
+	// Calculate pivot lag location. Get the pivot target location and interpolate using axis-independent lag for maximum control.
 
 	PivotLagLocation = CalculatePivotLagLocation(CameraYawRotation.Quaternion(), DeltaTime, bAllowLag);
 
@@ -178,7 +176,7 @@ void UAlsCameraComponent::TickCamera(const float DeltaTime, const bool bAllowLag
 
 	const auto CameraResultLocation{CalculateCameraTrace(CameraTargetLocation, PivotOffset, DeltaTime, bAllowLag, TraceDistanceRatio)};
 
-	if (FirstPersonOverride <= 0.0f)
+	if (!FAnimWeight::IsRelevant(FirstPersonOverride))
 	{
 		CameraLocation = CameraResultLocation;
 		CameraFov = Settings->ThirdPerson.Fov;
@@ -190,8 +188,8 @@ void UAlsCameraComponent::TickCamera(const float DeltaTime, const bool bAllowLag
 	}
 }
 
-FRotator UAlsCameraComponent::CalculateCameraRotation(const FRotator& CameraTargetRotation, const float DeltaTime,
-                                                      const bool bAllowLag) const
+FRotator UAlsCameraComponent::CalculateCameraRotation(const FRotator& CameraTargetRotation,
+                                                      const float DeltaTime, const bool bAllowLag) const
 {
 	if (!bAllowLag)
 	{
@@ -200,7 +198,7 @@ FRotator UAlsCameraComponent::CalculateCameraRotation(const FRotator& CameraTarg
 
 	const auto RotationLag{GetAnimInstance()->GetCurveValue(UAlsCameraConstants::RotationLagCurve())};
 
-	if (!Settings->CameraLagSubstepping.bUseLagSubstepping ||
+	if (!Settings->bUseLagSubstepping ||
 	    DeltaTime <= Settings->CameraLagSubstepping.LagSubstepDeltaTime ||
 	    RotationLag <= 0.0f)
 	{
@@ -245,7 +243,7 @@ FVector UAlsCameraComponent::CalculatePivotLagLocation(const FQuat& CameraYawRot
 	const auto LocationLagZ{GetAnimInstance()->GetCurveValue(UAlsCameraConstants::LocationLagZCurve())};
 
 	// ReSharper disable once CppRedundantParentheses
-	if (Settings->CameraLagSubstepping.bUseLagSubstepping ||
+	if (!Settings->bUseLagSubstepping ||
 	    DeltaTime <= Settings->CameraLagSubstepping.LagSubstepDeltaTime ||
 	    (LocationLagX <= 0.0f && LocationLagY <= 0.0f && LocationLagZ <= 0.0f))
 	{
@@ -270,11 +268,11 @@ FVector UAlsCameraComponent::CalculatePivotLagLocation(const FQuat& CameraYawRot
 			const auto SubstepDeltaTime{SubstepTime - PreviousSubstepTime};
 
 			RelativePivotLagLocation.X = FMath::FInterpTo(RelativePivotLagLocation.X, SubstepRelativePivotTargetLocation.X,
-														  SubstepDeltaTime, LocationLagX);
+			                                              SubstepDeltaTime, LocationLagX);
 			RelativePivotLagLocation.Y = FMath::FInterpTo(RelativePivotLagLocation.Y, SubstepRelativePivotTargetLocation.Y,
-														  SubstepDeltaTime, LocationLagY);
+			                                              SubstepDeltaTime, LocationLagY);
 			RelativePivotLagLocation.Z = FMath::FInterpTo(RelativePivotLagLocation.Z, SubstepRelativePivotTargetLocation.Z,
-														  SubstepDeltaTime, LocationLagZ);
+			                                              SubstepDeltaTime, LocationLagZ);
 
 			PreviousSubstepTime = SubstepTime;
 		}
@@ -296,20 +294,22 @@ FVector UAlsCameraComponent::CalculatePivotLagLocation(const FQuat& CameraYawRot
 
 FVector UAlsCameraComponent::CalculatePivotOffset(const FQuat& PivotTargetRotation) const
 {
-	return PivotTargetRotation.RotateVector({
-		GetAnimInstance()->GetCurveValue(UAlsCameraConstants::PivotOffsetXCurve()),
-		GetAnimInstance()->GetCurveValue(UAlsCameraConstants::PivotOffsetYCurve()),
-		GetAnimInstance()->GetCurveValue(UAlsCameraConstants::PivotOffsetZCurve())
-	});
+	return PivotTargetRotation.RotateVector(
+		FVector{
+			GetAnimInstance()->GetCurveValue(UAlsCameraConstants::PivotOffsetXCurve()),
+			GetAnimInstance()->GetCurveValue(UAlsCameraConstants::PivotOffsetYCurve()),
+			GetAnimInstance()->GetCurveValue(UAlsCameraConstants::PivotOffsetZCurve())
+		} * Character->GetCapsuleComponent()->GetComponentScale().Z);
 }
 
 FVector UAlsCameraComponent::CalculateCameraOffset() const
 {
-	return CameraRotation.RotateVector({
-		GetAnimInstance()->GetCurveValue(UAlsCameraConstants::CameraOffsetXCurve()),
-		GetAnimInstance()->GetCurveValue(UAlsCameraConstants::CameraOffsetYCurve()),
-		GetAnimInstance()->GetCurveValue(UAlsCameraConstants::CameraOffsetZCurve())
-	});
+	return CameraRotation.RotateVector(
+		FVector{
+			GetAnimInstance()->GetCurveValue(UAlsCameraConstants::CameraOffsetXCurve()),
+			GetAnimInstance()->GetCurveValue(UAlsCameraConstants::CameraOffsetYCurve()),
+			GetAnimInstance()->GetCurveValue(UAlsCameraConstants::CameraOffsetZCurve())
+		} * Character->GetCapsuleComponent()->GetComponentScale().Z);
 }
 
 FVector UAlsCameraComponent::CalculateCameraTrace(const FVector& CameraTargetLocation, const FVector& PivotOffset,
@@ -320,6 +320,8 @@ FVector UAlsCameraComponent::CalculateCameraTrace(const FVector& CameraTargetLoc
 #else
 	const auto bDisplayDebugCameraTraces{false};
 #endif
+
+	const auto CapsuleScale{Character->GetCapsuleComponent()->GetComponentScale().Z};
 
 	static const FName MainTraceTag{FString::Format(TEXT("{0} (Main Trace)"), {ANSI_TO_TCHAR(__FUNCTION__)})};
 
@@ -333,7 +335,7 @@ FVector UAlsCameraComponent::CalculateCameraTrace(const FVector& CameraTargetLoc
 	const auto TraceEnd{CameraTargetLocation};
 
 	const auto TraceChanel{UEngineTypes::ConvertToCollisionChannel(Settings->ThirdPerson.TraceChannel)};
-	const auto CollisionShape{FCollisionShape::MakeSphere(Settings->ThirdPerson.TraceRadius)};
+	const auto CollisionShape{FCollisionShape::MakeSphere(Settings->ThirdPerson.TraceRadius * CapsuleScale)};
 
 	auto TraceResult{TraceEnd};
 
@@ -361,14 +363,14 @@ FVector UAlsCameraComponent::CalculateCameraTrace(const FVector& CameraTargetLoc
 #if ENABLE_DRAW_DEBUG
 	if (bDisplayDebugCameraTraces)
 	{
-		UAlsUtility::DrawDebugSweptSphere(GetWorld(), TraceStart, TraceResult, Settings->ThirdPerson.TraceRadius,
+		UAlsUtility::DrawDebugSweptSphere(GetWorld(), TraceStart, TraceResult, Settings->ThirdPerson.TraceRadius * CapsuleScale,
 		                                  Hit.IsValidBlockingHit() ? FLinearColor::Red : FLinearColor::Green);
 	}
 #endif
 
 	// Apply trace distance smoothing.
 
-	if (!Settings->ThirdPerson.bAllowTraceDistanceSmoothing || !bAllowLag)
+	if (!bAllowLag || !Settings->ThirdPerson.bUseTraceDistanceSmoothing)
 	{
 		NewTraceDistanceRatio = 1.0f;
 		return TraceResult;
@@ -383,27 +385,27 @@ FVector UAlsCameraComponent::CalculateCameraTrace(const FVector& CameraTargetLoc
 		return TraceResult;
 	}
 
-	const auto TargetTraceDistanceRatio{(TraceResult - TraceStart).Size() / TraceDistance};
-	const auto fTargetTraceDistanceRatio = static_cast<float>(TargetTraceDistanceRatio);
-	NewTraceDistanceRatio = fTargetTraceDistanceRatio <= TraceDistanceRatio
-								? fTargetTraceDistanceRatio
-								: UAlsMath::ExponentialDecay(TraceDistanceRatio, fTargetTraceDistanceRatio, DeltaTime,
-															 Settings->ThirdPerson.TraceDistanceInterpolationSpeed);
+	const auto TargetTraceDistanceRatio{UE_REAL_TO_FLOAT((TraceResult - TraceStart).Size() / TraceDistance)};
+
+	NewTraceDistanceRatio = TargetTraceDistanceRatio <= TraceDistanceRatio
+		                        ? TargetTraceDistanceRatio
+		                        : UAlsMath::ExponentialDecay(TraceDistanceRatio, TargetTraceDistanceRatio, DeltaTime,
+		                                                     Settings->ThirdPerson.TraceDistanceSmoothing.InterpolationSpeed);
 
 	return TraceStart + TraceVector * TraceDistanceRatio;
 }
 
 bool UAlsCameraComponent::TryFindBlockingGeometryAdjustedLocation(FVector& Location, const bool bDisplayDebugCameraTraces) const
 {
-	// Copied with modifications from ComponentEncroachesBlockingGeometry_WithAdjustment
+	// Based on ComponentEncroachesBlockingGeometry_WithAdjustment().
 
-	constexpr auto Epsilon{1.0f};
+	const auto CapsuleScale{Character->GetCapsuleComponent()->GetComponentScale().Z};
 
 	const auto TraceChanel{UEngineTypes::ConvertToCollisionChannel(Settings->ThirdPerson.TraceChannel)};
-	const auto CollisionShape{FCollisionShape::MakeSphere(Settings->ThirdPerson.TraceRadius + Epsilon)};
+	const auto CollisionShape{FCollisionShape::MakeSphere((Settings->ThirdPerson.TraceRadius + 1.0f) * CapsuleScale)};
 
 	static TArray<FOverlapResult> Overlaps;
-	check(Overlaps.Num() <= 0)
+	check(Overlaps.IsEmpty())
 
 	static const FName OverlapMultiTraceTag{FString::Format(TEXT("{0} (Overlap Multi)"), {ANSI_TO_TCHAR(__FUNCTION__)})};
 
@@ -425,7 +427,10 @@ bool UAlsCameraComponent::TryFindBlockingGeometryAdjustedLocation(FVector& Locat
 			continue;
 		}
 
-		if (!Overlap.Component->ComputePenetration(MtdResult, CollisionShape, Location, FQuat::Identity))
+		const auto* OverlapBodyInstance{Overlap.Component->GetBodyInstance(NAME_None, true, Overlap.ItemIndex)};
+
+		if (OverlapBodyInstance == nullptr ||
+		    !OverlapBodyInstance->OverlapTest(Location, FQuat::Identity, CollisionShape, &MtdResult))
 		{
 			Overlaps.Reset();
 			return false;
@@ -446,12 +451,9 @@ bool UAlsCameraComponent::TryFindBlockingGeometryAdjustedLocation(FVector& Locat
 	}
 
 	auto AdjustmentDirection{Adjustment};
-	if (!AdjustmentDirection.Normalize())
-	{
-		return false;
-	}
 
-	if (UAlsMath::AngleBetweenSkipNormalization((GetOwner()->GetActorLocation() - Location).GetSafeNormal(),
+	if (!AdjustmentDirection.Normalize() ||
+	    UAlsMath::AngleBetweenSkipNormalization((GetOwner()->GetActorLocation() - Location).GetSafeNormal(),
 	                                            AdjustmentDirection) > 90.0f + 1.0f)
 	{
 		return false;
@@ -471,279 +473,6 @@ bool UAlsCameraComponent::TryFindBlockingGeometryAdjustedLocation(FVector& Locat
 	static const FName FreeSpaceTraceTag{FString::Format(TEXT("{0} (Free Space Overlap)"), {ANSI_TO_TCHAR(__FUNCTION__)})};
 
 	return !GetWorld()->OverlapBlockingTestByChannel(Location, FQuat::Identity, TraceChanel,
-	                                                 FCollisionShape::MakeSphere(Settings->ThirdPerson.TraceRadius),
+	                                                 FCollisionShape::MakeSphere(Settings->ThirdPerson.TraceRadius * CapsuleScale),
 	                                                 {FreeSpaceTraceTag, false, GetOwner()});
-}
-
-void UAlsCameraComponent::DisplayDebug(const UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& VerticalPosition) const
-{
-	const auto Scale{FMath::Min(Canvas->SizeX / (1280.0f * Canvas->GetDPIScale()), Canvas->SizeY / (720.0f * Canvas->GetDPIScale()))};
-
-	const auto RowOffset{12.0f * Scale};
-	const auto ColumnOffset{200.0f * Scale};
-
-	auto MaxVerticalPosition{VerticalPosition};
-	auto HorizontalPosition{5.0f * Scale};
-
-	if (!DebugDisplay.IsDisplayOn(UAlsCameraConstants::CameraCurvesDisplayName()) &&
-	    !DebugDisplay.IsDisplayOn(UAlsCameraConstants::CameraShapesDisplayName()) &&
-	    !DebugDisplay.IsDisplayOn(UAlsCameraConstants::CameraTracesDisplayName()))
-	{
-		VerticalPosition = MaxVerticalPosition;
-		return;
-	}
-
-	const auto InitialVerticalPosition{VerticalPosition};
-
-	static const auto CameraCurvesHeaderText{FText::AsCultureInvariant(TEXT("ALS.CameraCurves (Shift + 6)"))};
-
-	if (DebugDisplay.IsDisplayOn(UAlsCameraConstants::CameraCurvesDisplayName()))
-	{
-		DisplayDebugHeader(Canvas, CameraCurvesHeaderText, FLinearColor::Green, Scale, HorizontalPosition, VerticalPosition);
-		DisplayDebugCurves(Canvas, Scale, HorizontalPosition, VerticalPosition);
-
-		MaxVerticalPosition = FMath::Max(MaxVerticalPosition, VerticalPosition + RowOffset);
-		VerticalPosition = InitialVerticalPosition;
-		HorizontalPosition += ColumnOffset;
-	}
-	else
-	{
-		DisplayDebugHeader(Canvas, CameraCurvesHeaderText, {0.0f, 0.333333f, 0.0f}, Scale, HorizontalPosition, VerticalPosition);
-
-		VerticalPosition += RowOffset;
-	}
-
-	MaxVerticalPosition = FMath::Max(MaxVerticalPosition, VerticalPosition);
-
-	static const auto ShapesHeaderText{FText::AsCultureInvariant(TEXT("ALS.CameraShapes (Shift + 7)"))};
-
-	if (DebugDisplay.IsDisplayOn(UAlsCameraConstants::CameraShapesDisplayName()))
-	{
-		DisplayDebugHeader(Canvas, ShapesHeaderText, FLinearColor::Green, Scale, HorizontalPosition, VerticalPosition);
-		DisplayDebugShapes(Canvas, Scale, HorizontalPosition, VerticalPosition);
-	}
-	else
-	{
-		DisplayDebugHeader(Canvas, ShapesHeaderText, {0.0f, 0.333333f, 0.0f}, Scale, HorizontalPosition, VerticalPosition);
-	}
-
-	VerticalPosition += RowOffset;
-	MaxVerticalPosition = FMath::Max(MaxVerticalPosition, VerticalPosition);
-
-	static const auto TracesHeaderText{FText::AsCultureInvariant(TEXT("ALS.CameraTraces (Shift + 8)"))};
-
-	if (DebugDisplay.IsDisplayOn(UAlsCameraConstants::CameraTracesDisplayName()))
-	{
-		DisplayDebugHeader(Canvas, TracesHeaderText, FLinearColor::Green, Scale, HorizontalPosition, VerticalPosition);
-		DisplayDebugTraces(Canvas, Scale, HorizontalPosition, VerticalPosition);
-	}
-	else
-	{
-		DisplayDebugHeader(Canvas, TracesHeaderText, {0.0f, 0.333333f, 0.0f}, Scale, HorizontalPosition, VerticalPosition);
-	}
-
-	VerticalPosition += RowOffset;
-	MaxVerticalPosition = FMath::Max(MaxVerticalPosition, VerticalPosition);
-
-	VerticalPosition = MaxVerticalPosition;
-}
-
-void UAlsCameraComponent::DisplayDebugHeader(const UCanvas* Canvas, const FText& HeaderText, const FLinearColor& HeaderColor,
-                                             const float Scale, const float HorizontalPosition, float& VerticalPosition)
-{
-	FCanvasTextItem Text{
-		{HorizontalPosition, VerticalPosition},
-		HeaderText,
-		GEngine->GetMediumFont(),
-		HeaderColor
-	};
-
-	Text.Scale = {Scale, Scale};
-	Text.EnableShadow(FLinearColor::Black);
-
-	Text.Draw(Canvas->Canvas);
-
-	VerticalPosition += 15.0f * Scale;
-}
-
-void UAlsCameraComponent::DisplayDebugCurves(const UCanvas* Canvas, const float Scale,
-                                             const float HorizontalPosition, float& VerticalPosition) const
-{
-	VerticalPosition += 4.0f * Scale;
-
-	FCanvasTextItem Text{
-		FVector2D::ZeroVector,
-		FText::GetEmpty(),
-		GEngine->GetMediumFont(),
-		FLinearColor::White
-	};
-
-	Text.Scale = {Scale * 0.75f, Scale * 0.75f};
-	Text.EnableShadow(FLinearColor::Black);
-
-	const auto RowOffset{12.0f * Scale};
-	const auto ColumnOffset{145.0f * Scale};
-
-	static TArray<FName> CurveNames;
-	check(CurveNames.Num() <= 0)
-
-	GetAnimInstance()->GetAllCurveNames(CurveNames);
-
-	CurveNames.Sort([](const FName& A, const FName& B) { return A.LexicalLess(B); });
-
-	for (const auto& CurveName : CurveNames)
-	{
-		const auto CurveValue{GetAnimInstance()->GetCurveValue(CurveName)};
-
-		Text.SetColor(FMath::Lerp(FLinearColor::Gray, FLinearColor::White, UAlsMath::Clamp01(FMath::Abs(CurveValue))));
-
-		Text.Text = FText::AsCultureInvariant(FName::NameToDisplayString(CurveName.ToString(), false));
-		Text.Draw(Canvas->Canvas, {HorizontalPosition, VerticalPosition});
-
-		Text.Text = FText::AsCultureInvariant(FString::Printf(TEXT("%.2f"), CurveValue));
-		Text.Draw(Canvas->Canvas, {HorizontalPosition + ColumnOffset, VerticalPosition});
-
-		VerticalPosition += RowOffset;
-	}
-
-	CurveNames.Reset();
-}
-
-void UAlsCameraComponent::DisplayDebugShapes(const UCanvas* Canvas, const float Scale,
-                                             const float HorizontalPosition, float& VerticalPosition) const
-{
-	VerticalPosition += 4.0f * Scale;
-
-	FCanvasTextItem Text{
-		FVector2D::ZeroVector,
-		FText::GetEmpty(),
-		GEngine->GetMediumFont(),
-		FLinearColor::White
-	};
-
-	Text.Scale = {Scale * 0.75f, Scale * 0.75f};
-	Text.EnableShadow(FLinearColor::Black);
-
-	const auto RowOffset{12.0f * Scale};
-	const auto ColumnOffset{120.0f * Scale};
-
-	static const auto PivotTargetLocationText{
-		FText::AsCultureInvariant(FName::NameToDisplayString(GET_MEMBER_NAME_STRING_CHECKED(ThisClass, PivotTargetLocation), false))
-	};
-
-	auto Color{FLinearColor::Green};
-	Text.SetColor(Color);
-
-	Text.Text = PivotTargetLocationText;
-	Text.Draw(Canvas->Canvas, {HorizontalPosition, VerticalPosition});
-
-	Text.Text = FText::AsCultureInvariant(FString::Printf(TEXT("X: %.2f Y: %.2f Z: %.2f"),
-	                                                      PivotTargetLocation.X, PivotTargetLocation.Y, PivotTargetLocation.Z));
-	Text.Draw(Canvas->Canvas, {HorizontalPosition + ColumnOffset, VerticalPosition});
-
-	VerticalPosition += RowOffset;
-
-	static const auto PivotLagLocationText{
-		FText::AsCultureInvariant(FName::NameToDisplayString(GET_MEMBER_NAME_STRING_CHECKED(ThisClass, PivotLagLocation), false))
-	};
-
-	Color = {1.0f, 0.5f, 0.0f};
-	Text.SetColor(Color);
-
-	Text.Text = PivotLagLocationText;
-	Text.Draw(Canvas->Canvas, {HorizontalPosition, VerticalPosition});
-
-	Text.Text = FText::AsCultureInvariant(FString::Printf(TEXT("X: %.2f Y: %.2f Z: %.2f"),
-	                                                      PivotLagLocation.X, PivotLagLocation.Y, PivotLagLocation.Z));
-	Text.Draw(Canvas->Canvas, {HorizontalPosition + ColumnOffset, VerticalPosition});
-
-	VerticalPosition += RowOffset;
-
-	static const auto PivotLocationText{
-		FText::AsCultureInvariant(FName::NameToDisplayString(GET_MEMBER_NAME_STRING_CHECKED(ThisClass, PivotLocation), false))
-	};
-
-	Color = {0.0f, 0.75f, 1.0f};
-	Text.SetColor(Color);
-
-	Text.Text = PivotLocationText;
-	Text.Draw(Canvas->Canvas, {HorizontalPosition, VerticalPosition});
-
-	Text.Text = FText::AsCultureInvariant(FString::Printf(TEXT("X: %.2f Y: %.2f Z: %.2f"),
-	                                                      PivotLocation.X, PivotLocation.Y, PivotLocation.Z));
-	Text.Draw(Canvas->Canvas, {HorizontalPosition + ColumnOffset, VerticalPosition});
-
-	VerticalPosition += RowOffset;
-
-	static const auto CameraFovText{
-		FText::AsCultureInvariant(FName::NameToDisplayString(GET_MEMBER_NAME_STRING_CHECKED(ThisClass, CameraFov), false))
-	};
-
-	Color = FLinearColor::White;
-	Text.SetColor(Color);
-
-	Text.Text = CameraFovText;
-	Text.Draw(Canvas->Canvas, {HorizontalPosition, VerticalPosition});
-
-	Text.Text = FText::AsCultureInvariant(FString::Printf(TEXT("%.2f"), CameraFov));
-	Text.Draw(Canvas->Canvas, {HorizontalPosition + ColumnOffset, VerticalPosition});
-
-	VerticalPosition += RowOffset;
-
-	static const auto RightShoulderText{
-		FText::AsCultureInvariant(FName::NameToDisplayString(GET_MEMBER_NAME_STRING_CHECKED(ThisClass, bRightShoulder), true))
-	};
-
-	Text.Text = RightShoulderText;
-	Text.Draw(Canvas->Canvas, {HorizontalPosition, VerticalPosition});
-
-	Text.Text = FText::AsCultureInvariant(FName::NameToDisplayString(ToString(bRightShoulder), false));
-	Text.Draw(Canvas->Canvas, {HorizontalPosition + ColumnOffset, VerticalPosition});
-
-	VerticalPosition += RowOffset;
-}
-
-void UAlsCameraComponent::DisplayDebugTraces(const UCanvas* Canvas, const float Scale,
-                                             const float HorizontalPosition, float& VerticalPosition) const
-{
-	VerticalPosition += 4.0f * Scale;
-
-	FCanvasTextItem Text{
-		FVector2D::ZeroVector,
-		FText::GetEmpty(),
-		GEngine->GetMediumFont(),
-		FLinearColor::White
-	};
-
-	Text.Scale = {Scale * 0.75f, Scale * 0.75f};
-	Text.EnableShadow(FLinearColor::Black);
-
-	const auto RowOffset{12.0f * Scale};
-
-	static const auto BlockingGeometryAdjustmentText{FText::AsCultureInvariant(TEXT("Blocking Geometry Adjustment"))};
-
-	Text.SetColor({0.0f, 0.75f, 1.0f});
-
-	Text.Text = BlockingGeometryAdjustmentText;
-	Text.Draw(Canvas->Canvas, {HorizontalPosition, VerticalPosition});
-
-	VerticalPosition += RowOffset;
-
-	static const auto CameraTraceNoHitText{FText::AsCultureInvariant(TEXT("Camera Trace (No Hit)"))};
-
-	Text.SetColor(FLinearColor::Green);
-
-	Text.Text = CameraTraceNoHitText;
-	Text.Draw(Canvas->Canvas, {HorizontalPosition, VerticalPosition});
-
-	VerticalPosition += RowOffset;
-
-	static const auto CameraTraceBlockingHitText{FText::AsCultureInvariant(TEXT("Camera Trace (Blocking Hit)"))};
-
-	Text.SetColor(FLinearColor::Red);
-
-	Text.Text = CameraTraceBlockingHitText;
-	Text.Draw(Canvas->Canvas, {HorizontalPosition, VerticalPosition});
-
-	VerticalPosition += RowOffset;
 }

@@ -2,7 +2,7 @@
 
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Settings/AlsMovementSettings.h"
-
+#include "Utility/AlsGameplayTags.h"
 #include "AlsCharacterMovementComponent.generated.h"
 
 using FAlsPhysicsRotationDelegate = TMulticastDelegate<void(float DeltaTime)>;
@@ -13,11 +13,11 @@ private:
 	using Super = FCharacterNetworkMoveData;
 
 public:
-	EAlsStance Stance{EAlsStance::Standing};
+	FGameplayTag RotationMode{AlsRotationModeTags::LookingDirection};
 
-	EAlsRotationMode RotationMode{EAlsRotationMode::LookingDirection};
+	FGameplayTag Stance{AlsStanceTags::Standing};
 
-	EAlsGait MaxAllowedGait{EAlsGait::Walking};
+	FGameplayTag MaxAllowedGait{AlsGaitTags::Walking};
 
 public:
 	virtual void ClientFillNetworkMoveData(const FSavedMove_Character& Move, ENetworkMoveType MoveType) override;
@@ -40,11 +40,11 @@ private:
 	using Super = FSavedMove_Character;
 
 public:
-	EAlsStance Stance{EAlsStance::Standing};
+	FGameplayTag RotationMode{AlsRotationModeTags::LookingDirection};
 
-	EAlsRotationMode RotationMode{EAlsRotationMode::LookingDirection};
+	FGameplayTag Stance{AlsStanceTags::Standing};
 
-	EAlsGait MaxAllowedGait{EAlsGait::Walking};
+	FGameplayTag MaxAllowedGait{AlsGaitTags::Walking};
 
 public:
 	virtual void Clear() override;
@@ -53,6 +53,9 @@ public:
 	                        FNetworkPredictionData_Client_Character& PredictionData) override;
 
 	virtual bool CanCombineWith(const FSavedMovePtr& NewMovePtr, ACharacter* Character, float MaxDelta) const override;
+
+	virtual void CombineWith(const FSavedMove_Character* PreviousMove, ACharacter* Character,
+	                         APlayerController* PlayerController, const FVector& PreviousStartLocation) override;
 
 	virtual void PrepMoveFor(ACharacter* Character) override;
 };
@@ -63,7 +66,7 @@ private:
 	using Super = FNetworkPredictionData_Client_Character;
 
 public:
-	FAlsNetworkPredictionData(const UCharacterMovementComponent& MovementComponent);
+	FAlsNetworkPredictionData(const UCharacterMovementComponent& Movement);
 
 	virtual FSavedMovePtr AllocateNewMove() override;
 };
@@ -79,22 +82,29 @@ private:
 	FAlsCharacterNetworkMoveDataContainer MoveDataContainer;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
-	UAlsMovementSettings* MovementSettings;
+	TObjectPtr<UAlsMovementSettings> MovementSettings;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
 	FAlsMovementGaitSettings GaitSettings;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
-	EAlsStance Stance;
+	FGameplayTag RotationMode{AlsRotationModeTags::LookingDirection};
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
-	EAlsRotationMode RotationMode;
+	FGameplayTag Stance{AlsStanceTags::Standing};
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
-	EAlsGait MaxAllowedGait;
+	FGameplayTag MaxAllowedGait{AlsGaitTags::Walking};
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
 	bool bMovementModeLocked;
+
+	// Valid only on locally controlled characters.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
+	FRotator PreviousControlRotation;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
+	FVector PendingPenetrationAdjustment;
 
 public:
 	FAlsPhysicsRotationDelegate OnPhysicsRotation;
@@ -106,32 +116,50 @@ public:
 	virtual bool CanEditChange(const FProperty* Property) const override;
 #endif
 
-	virtual void SetMovementMode(EMovementMode NewMovementMode, uint8 NewCustomMode) override;
+	virtual void BeginPlay() override;
 
-protected:
+	virtual void SetMovementMode(EMovementMode NewMovementMode, uint8 NewCustomMode = 0) override;
+
 	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
 
 public:
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
 	virtual float GetMaxAcceleration() const override;
 
 	virtual float GetMaxBrakingDeceleration() const override;
 
+protected:
+	virtual void ControlledCharacterMove(const FVector& InputVector, float DeltaTime) override;
+
+public:
 	virtual void PhysicsRotation(float DeltaTime) override;
 
 protected:
 	virtual void PhysWalking(float DeltaTime, int32 Iterations) override;
 
+	virtual void PhysNavWalking(float DeltaTime, int32 Iterations) override;
+
 	virtual void PhysCustom(float DeltaTime, int32 Iterations) override;
+
+	virtual void PerformMovement(float DeltaTime) override;
 
 public:
 	virtual FNetworkPredictionData_Client* GetPredictionData_Client() const override;
 
 protected:
+	virtual void SmoothClientPosition(float DeltaTime) override;
+
 	virtual void MoveAutonomous(float ClientTimeStamp, float DeltaTime, uint8 CompressedFlags, const FVector& NewAcceleration) override;
 
+	virtual void ComputeFloorDist(const FVector& CapsuleLocation, float LineDistance, float SweepDistance, FFindFloorResult& OutFloorResult,
+	                              float SweepRadius, const FHitResult* DownwardSweepResult) const override;
+
+private:
+	void SavePenetrationAdjustment(const FHitResult& Hit);
+
+	void ApplyPendingPenetrationAdjustment();
+
 public:
+	UFUNCTION(BlueprintCallable, Category = "ALS|Als Character Movement")
 	void SetMovementSettings(UAlsMovementSettings* NewMovementSettings);
 
 	const FAlsMovementGaitSettings& GetGaitSettings() const;
@@ -140,11 +168,11 @@ private:
 	void RefreshGaitSettings();
 
 public:
-	void SetStance(EAlsStance NewStance);
+	void SetRotationMode(const FGameplayTag& NewModeTag);
 
-	void SetRotationMode(EAlsRotationMode NewMode);
+	void SetStance(const FGameplayTag& NewStanceTag);
 
-	void SetMaxAllowedGait(EAlsGait NewGait);
+	void SetMaxAllowedGait(const FGameplayTag& NewGaitTag);
 
 private:
 	void RefreshMaxWalkSpeed();

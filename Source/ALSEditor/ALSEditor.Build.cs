@@ -6,24 +6,16 @@ public class ALSEditor : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new[]
+		PrivateDependencyModuleNames.AddRange(new[]
 		{
-			"Core", "CoreUObject", "Engine", "AnimationModifiers", "ALS", "AnimationBlueprintLibrary"
+			"Core", "CoreUObject", "Engine", "AnimationModifiers", "AnimationBlueprintLibrary", "ALS"
 		});
-		PrivateDependencyModuleNames.AddRange(new []
-		{
-			"AnimGraphRuntime"
-		});
+
 		if (Target.bBuildEditor)
 		{
-			PublicDependencyModuleNames.AddRange(new[]
-			{
-				"AnimGraph"
-			});
-
 			PrivateDependencyModuleNames.AddRange(new[]
 			{
-				"BlueprintGraph"
+				"AnimGraph", "BlueprintGraph"
 			});
 		}
 	}

@@ -3,26 +3,27 @@
 #include "Camera/CameraTypes.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Utility/AlsMath.h"
-
 #include "AlsCameraComponent.generated.h"
 
 class UAlsCameraSettings;
 class AAlsCharacter;
 
-UCLASS()
+UCLASS(HideCategories = ("ComponentTick", "Clothing", "Physics", "MasterPoseComponent", "Collision",
+	"AnimationRig", "Lighting", "Deformer", "Rendering", "HLOD", "Navigation", "VirtualTexture", "SkeletalMesh",
+	"Optimization", "LOD", "MaterialParameters", "TextureStreaming", "Mobile", "RayTracing"))
 class ALSCAMERA_API UAlsCameraComponent : public USkeletalMeshComponent
 {
 	GENERATED_BODY()
 
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Settings", Meta = (AllowPrivateAccess))
-	UAlsCameraSettings* Settings;
+	TObjectPtr<UAlsCameraSettings> Settings;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Settings", Meta = (AllowPrivateAccess, ClampMin = 0, ClampMax = 1))
 	float PostProcessWeight;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
-	AAlsCharacter* AlsCharacter;
+	TObjectPtr<AAlsCharacter> Character;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
 	FVector PivotTargetLocation;
@@ -42,8 +43,9 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess, ClampMin = 0, ClampMax = 1))
 	float TraceDistanceRatio{1.0f};
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess, ClampMin = 5, ClampMax = 360))
-	float CameraFov;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient,
+		Meta = (AllowPrivateAccess, ClampMin = 5, ClampMax = 360, ForceUnits = "deg"))
+	float CameraFov{90.0f};
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State", Transient, Meta = (AllowPrivateAccess))
 	bool bRightShoulder{true};
@@ -59,6 +61,7 @@ public:
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+public:
 	float GetPostProcessWeight() const;
 
 	void SetPostProcessWeight(bool NewPostProcessWeight);
@@ -99,17 +102,17 @@ private:
 	// Debug
 
 public:
-	void DisplayDebug(const UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& VerticalPosition) const;
+	void DisplayDebug(const UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& VerticalLocation) const;
 
 private:
 	static void DisplayDebugHeader(const UCanvas* Canvas, const FText& HeaderText, const FLinearColor& HeaderColor,
-	                               float Scale, float HorizontalPosition, float& VerticalPosition);
+	                               float Scale, float HorizontalLocation, float& VerticalLocation);
 
-	void DisplayDebugCurves(const UCanvas* Canvas, float Scale, float HorizontalPosition, float& VerticalPosition) const;
+	void DisplayDebugCurves(const UCanvas* Canvas, float Scale, float HorizontalLocation, float& VerticalLocation) const;
 
-	void DisplayDebugShapes(const UCanvas* Canvas, float Scale, float HorizontalPosition, float& VerticalPosition) const;
+	void DisplayDebugShapes(const UCanvas* Canvas, float Scale, float HorizontalLocation, float& VerticalLocation) const;
 
-	void DisplayDebugTraces(const UCanvas* Canvas, float Scale, float HorizontalPosition, float& VerticalPosition) const;
+	void DisplayDebugTraces(const UCanvas* Canvas, float Scale, float HorizontalLocation, float& VerticalLocation) const;
 };
 
 inline float UAlsCameraComponent::GetPostProcessWeight() const

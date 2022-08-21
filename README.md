@@ -1,38 +1,53 @@
+<img src="Resources/Icon128.png" align="right" width="110">
+
 # Advanced Locomotion System Refactored
 
-![Image](https://github.com/Sixze/ALS-Refactored/raw/main/Images/Header.gif)
+Completely reworked and improved version of the [Community Version](https://github.com/dyanikoglu/ALS-Community) of [Advanced Locomotion System V4](https://www.unrealengine.com/marketplace/en-US/product/advanced-locomotion-system-v1).
 
-Completely refactored and bug fixed version of the [Community Version](https://github.com/dyanikoglu/ALS-Community) of [Advanced Locomotion System V4](https://www.unrealengine.com/marketplace/en-US/product/advanced-locomotion-system-v1) for **Unreal Engine 4.26, 4.27, 5.0 EA**.
-
-## Supported Platforms
-
-- Windows
-
-*macOS, iOS, Linux, Android, and console builds are not tested. Use the plugin on those platforms with your own risk.*
+The main purpose of this ALS version is is a complete and high-quality refactoring of every aspect of the plugin, so that it becomes easier to understand, more flexible, reliable (especially in network multiplayer), performant, and simply more pleasant to work with.
 
 ## Features
 
-- Based on latest marketplace release.
-- Fully implemented in C++.
-- Plugin structure.
-- Highly optimized for production.
-- Full replication support with low bandwidth usage.
-- Lots of bug fixes additional to marketplace version.
+- Refactored plugin structure. Content is now separated into 3 categories: `ALS` - main content, `ALSCamera` - camera-related content and `ALSExtras` - other optional content.
+- Use of multiple linked animation blueprints instead of a single monolithic animation blueprint.
+- Use of animation layer interfaces to dynamically switch overlay states at runtime instead of referencing them directly in animation blueprints.
+- Use of the **Control Rig** plugin for IK and other bone manipulation tasks instead of animation graph nodes.
+- Significantly reduced number of virtual bones required by the plugin.
+- Added the ability to disable the use of IK bones and use only virtual bones for all bone manipulation tasks, which can be useful in cases where IK bones are not animated in your custom animations.
+- Reworked foot locking to make it more performant and reliable, especially in network multiplayer.
+- Reworked foot and pelvis offset logic for smoother character movement on stairs or sloped surfaces.
+- Added "Slot" layering animation curves that allow to control the blending of overlay poses with animation montages played inside "Layering" animation slots.
+- Added `Blend Curves` and `Blend Poses by Gameplay Tag` animation graph nodes. `Blend Curves` allows to blend animation curves without the need for the `VB curves` virtual bone and `Blend Poses by Gameplay Tag` is similar to `Blend Poses by Enum` but uses gameplay tags instead of enum.
+- Moved thread-safe animation instance logic to the worker thread to improve game thread performance.
+- Replaced some C++ enums such as `EAlsOverlayMode` with gameplay tags so new entries can be added without the need to modify the code.
+- Reworked `UAlsCharacterMovementComponent` for better movement synchronization over the network.
+- Reworked mantling. Implemented as a root motion source for better movement synchronization over the network.
+- Reworked camera. Implemented as a component similar to the standard camera component, no need for custom `APlayerCameraManager` or `APlayerController` classes.
+- Reworked debug mode. Can be toggled by pressing `Shift + [1-8]` or using console commands such as `ShowDebug ALS.Curves`.
+- Use of **Push Model** for more efficient replication.
+- Use of **MetaSounds** and **Enhanced Input** plugins.
+- Support of **Update Rate Optimization** (disabled by default) and **Large World Coordinates**.
+- Most of the recent significant changes from the community version are also present here.
+- A lot of other fixes, improvements and refactorings.
 
-## Known Issues & Discussion
+Also see the [Releases](https://github.com/Sixze/ALS-Refactored/releases) page for more details.
+Reading the changelogs is a good way to keep up to date with all the latest features that the plugin has to offer.
 
-- See [Issues](https://github.com/Sixze/ALS-Refactored/issues) section for list of known issues.
-- See [Discussions](https://github.com/Sixze/ALS-Refactored/discussions) section to discuss anything about the plugin, and ask questions. Please do not open an issue for questions.
+## Supported Unreal Engine Versions & Platforms
 
-## Setting Up the Plugin
+| Plugin Version                                                            | Unreal Engine Version           |
+|---------------------------------------------------------------------------|---------------------------------|
+| [4.9](https://github.com/Sixze/ALS-Refactored/releases/tag/4.9)           | 5.0                             |
+| [4.8](https://github.com/Sixze/ALS-Refactored/releases/tag/4.8) and below | 4.26, 4.27 and 5.0 Early Access |
 
-- **C++ project is a requirement. Blueprint projects are currently not supported.**
-- Clone the repository inside your project's plugins folder, or download the latest release and extract it into your project's plugins folder.
-- Place `DefaultEngine.ini` and `DefaultInput.ini` from the plugin config folder into your project config folder. If your project already has theese files, then merge them with yours.
-- Regenerate Visual Studio project files and build your project.
-- Launch the project, and enable plugin content viewer as seen below. This will show contents of the plugin in your content browser:
-![image](https://github.com/Sixze/ALS-Refactored/raw/main/Images/ShowPluginContent.png)
+**The plugin is mainly developed and tested on Windows, so use it on other platforms at your own risk.**
+
+## Quick Start
+
+1. Clone the repository to your project's `Plugins` folder, or download the latest release and extract it to your project's `Plugins` folder.
+2. Merge the `DefaultEngine.ini` and `DefaultInput.ini` files from the plugin's `Config` folder with files from your project's `Config` folder.
+3. Recompile your project.
 
 ## License & Contribution
 
-**Source code** of the plugin is licensed under MIT license, and other developers are encouraged to fork the repository, open issues & pull requests to help the development.
+ALS Refactored is licensed under the MIT License, see [LICENSE.md](LICENSE.md) for more information. Other developers are encouraged to fork the repository, open issues & pull requests to help the development.

@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "Engine/EngineTypes.h"
-
 #include "AlsInAirSettings.generated.h"
 
 class UCurveFloat;
@@ -13,11 +12,11 @@ struct ALS_API FAlsInAirSettings
 
 	// Vertical velocity to lean amount curve.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UCurveFloat* LeanAmountCurve{nullptr};
+	TObjectPtr<UCurveFloat> LeanAmountCurve{nullptr};
 
 	// Ground prediction sweep hit time to ground prediction amount curve.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UCurveFloat* GroundPredictionAmountCurve{nullptr};
+	TObjectPtr<UCurveFloat> GroundPredictionAmountCurve{nullptr};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<TEnumAsByte<EObjectTypeQuery>> GroundPredictionSweepObjectTypes;

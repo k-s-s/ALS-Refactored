@@ -1,59 +1,59 @@
 ﻿#pragma once
 
 #include "Engine/DataAsset.h"
-#include "State/Enumerations/AlsGait.h"
-#include "State/Enumerations/AlsRotationMode.h"
-#include "State/Enumerations/AlsStance.h"
-
+#include "Utility/AlsGameplayTags.h"
 #include "AlsMovementSettings.generated.h"
 
-class UCurveVector;
 class UCurveFloat;
+class UCurveVector;
 
 USTRUCT(BlueprintType)
 struct ALS_API FAlsMovementGaitSettings
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0))
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0, ForceUnits = "cm/s"))
 	float WalkSpeed{175.0f};
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0, ForceUnits = "cm/s"))
 	float RunSpeed{375.0f};
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ClampMin = 0, ForceUnits = "cm/s"))
 	float SprintSpeed{650.0f};
 
-	// Gait amount to acceleration, deceleration and ground friction curve.
-	// Gait amount ranges from 0 to 3, where 0 is stopped, 1 is walking, 2 is running and 3 is sprinting.
+	// Gait amount to acceleration, deceleration, and ground friction curve.
+	// Gait amount ranges from 0 to 3, where 0 is stopped, 1 is walking, 2 is running, and 3 is sprinting.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UCurveVector* AccelerationAndDecelerationAndGroundFrictionCurve{nullptr};
+	TObjectPtr<UCurveVector> AccelerationAndDecelerationAndGroundFrictionCurve{nullptr};
 
-	// Gait amount to rotation speed curve.
-	// Gait amount ranges from 0 to 3, where 0 is stopped, 1 is walking, 2 is running and 3 is sprinting.
+	// Gait amount to rotation interpolation speed curve.
+	// Gait amount ranges from 0 to 3, where 0 is stopped, 1 is walking, 2 is running, and 3 is sprinting.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UCurveFloat* RotationSpeedCurve{nullptr};
+	TObjectPtr<UCurveFloat> RotationInterpolationSpeedCurve{nullptr};
 
-	float GetSpeedForGait(const EAlsGait Gait) const;
+public:
+	float GetSpeedForGait(const FGameplayTag& GaitTag) const;
 };
 
-inline float FAlsMovementGaitSettings::GetSpeedForGait(const EAlsGait Gait) const
+inline float FAlsMovementGaitSettings::GetSpeedForGait(const FGameplayTag& GaitTag) const
 {
-	switch (Gait)
+	if (GaitTag == AlsGaitTags::Walking)
 	{
-		case EAlsGait::Running:
-			return RunSpeed;
-
-		case EAlsGait::Sprinting:
-			return SprintSpeed;
-
-		case EAlsGait::Walking:
-			return WalkSpeed;
-
-		default:
-			checkNoEntry();
-			return 0.0f;
+		return WalkSpeed;
 	}
+
+	if (GaitTag == AlsGaitTags::Running)
+	{
+		return RunSpeed;
+	}
+
+	if (GaitTag == AlsGaitTags::Sprinting)
+	{
+		return SprintSpeed;
+	}
+
+	return 0.0f;
 }
 
 USTRUCT(BlueprintType)
@@ -61,30 +61,13 @@ struct ALS_API FAlsMovementStanceSettings
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FAlsMovementGaitSettings Standing;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FAlsMovementGaitSettings Crouching;
-
-	const FAlsMovementGaitSettings* GetMovementGaitSettingsForStance(const EAlsStance Stance) const;
-};
-
-inline const FAlsMovementGaitSettings* FAlsMovementStanceSettings::GetMovementGaitSettingsForStance(const EAlsStance Stance) const
-{
-	switch (Stance)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (ForceInlineRow))
+	TMap<FGameplayTag, FAlsMovementGaitSettings> Stances
 	{
-		case EAlsStance::Standing:
-			return &Standing;
-
-		case EAlsStance::Crouching:
-			return &Crouching;
-
-		default:
-			checkNoEntry();
-			return nullptr;
-	}
-}
+		{AlsStanceTags::Standing, {}},
+		{AlsStanceTags::Crouching, {}}
+	};
+};
 
 UCLASS(Blueprintable, BlueprintType)
 class ALS_API UAlsMovementSettings : public UDataAsset
@@ -92,35 +75,11 @@ class ALS_API UAlsMovementSettings : public UDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FAlsMovementStanceSettings LookingDirection;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FAlsMovementStanceSettings VelocityDirection;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FAlsMovementStanceSettings Aiming;
-
-public:
-	const FAlsMovementStanceSettings* GetMovementStanceSettingsForRotationMode(const EAlsRotationMode RotationMode) const;
-};
-
-inline const FAlsMovementStanceSettings* UAlsMovementSettings::GetMovementStanceSettingsForRotationMode(
-	const EAlsRotationMode RotationMode) const
-{
-	switch (RotationMode)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Meta = (ForceInlineRow))
+	TMap<FGameplayTag, FAlsMovementStanceSettings> RotationModes
 	{
-		case EAlsRotationMode::LookingDirection:
-			return &LookingDirection;
-
-		case EAlsRotationMode::VelocityDirection:
-			return &VelocityDirection;
-
-		case EAlsRotationMode::Aiming:
-			return &Aiming;
-
-		default:
-			checkNoEntry();
-			return nullptr;
-	}
-}
+		{AlsRotationModeTags::VelocityDirection, {}},
+		{AlsRotationModeTags::LookingDirection, {}},
+		{AlsRotationModeTags::Aiming, {}}
+	};
+};
